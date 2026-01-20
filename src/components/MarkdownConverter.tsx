@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { generateWordDocument, generatePDFDocument } from '@/lib/documentGenerator';
 import { toast } from 'sonner';
 
-const MAX_CHARS = 50000;
+const MAX_CHARS = 200000;
 
 export function MarkdownConverter() {
   const [filename, setFilename] = useState('');
