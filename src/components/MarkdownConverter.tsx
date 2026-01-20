@@ -51,9 +51,8 @@ export function MarkdownConverter() {
   };
 
   const handleMarkdownChange = (value: string) => {
-    if (value.length <= MAX_CHARS) {
-      setMarkdown(value);
-    }
+    // Allow paste but truncate to MAX_CHARS
+    setMarkdown(value.slice(0, MAX_CHARS));
   };
 
   return (
