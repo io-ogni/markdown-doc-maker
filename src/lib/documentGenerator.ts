@@ -31,21 +31,34 @@ function parseMarkdown(markdown: string): ParsedElement[] {
       if (nextLine.match(/^\|?[\s\-:]+\|[\s\-:|]+\|?$/)) {
         const tableData: string[][] = [];
         
-        // Parse header row
-        const headerCells = trimmedLine.split('|').map(cell => cell.trim()).filter(cell => cell !== '');
+        // Parse header row - preserve empty cells for proper column alignment
+        const rawHeaderCells = trimmedLine.split('|').map(cell => cell.trim());
+        // Remove leading/trailing empty strings from split (caused by leading/trailing |)
+        const headerCells = rawHeaderCells.slice(
+          rawHeaderCells[0] === '' ? 1 : 0,
+          rawHeaderCells[rawHeaderCells.length - 1] === '' ? -1 : undefined
+        );
+        const colCount = headerCells.length;
         tableData.push(headerCells);
         
         i += 2; // Skip header and separator
         
-        // Parse data rows
+        // Parse data rows - preserve empty cells
         while (i < lines.length) {
           const dataLine = lines[i]?.trim() || '';
           if (!dataLine.includes('|') || dataLine === '') break;
           
-          const dataCells = dataLine.split('|').map(cell => cell.trim()).filter(cell => cell !== '');
-          if (dataCells.length > 0) {
-            tableData.push(dataCells);
-          }
+          const rawDataCells = dataLine.split('|').map(cell => cell.trim());
+          // Remove leading/trailing empty strings from split
+          const dataCells = rawDataCells.slice(
+            rawDataCells[0] === '' ? 1 : 0,
+            rawDataCells[rawDataCells.length - 1] === '' ? -1 : undefined
+          );
+          // Pad or trim to match header column count
+          while (dataCells.length < colCount) dataCells.push('');
+          if (dataCells.length > colCount) dataCells.length = colCount;
+          
+          tableData.push(dataCells);
           i++;
         }
         
