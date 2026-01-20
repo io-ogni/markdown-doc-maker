@@ -3,7 +3,7 @@ import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 
 interface ParsedElement {
-  type: 'heading1' | 'heading2' | 'heading3' | 'paragraph' | 'list-item' | 'code' | 'blockquote' | 'table';
+  type: 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'paragraph' | 'list-item' | 'code' | 'blockquote' | 'table';
   content: string;
   tableData?: string[][];
   bold?: boolean;
@@ -67,7 +67,9 @@ function parseMarkdown(markdown: string): ParsedElement[] {
       }
     }
 
-    if (trimmedLine.startsWith('### ')) {
+    if (trimmedLine.startsWith('#### ')) {
+      elements.push({ type: 'heading4', content: trimmedLine.slice(5) });
+    } else if (trimmedLine.startsWith('### ')) {
       elements.push({ type: 'heading3', content: trimmedLine.slice(4) });
     } else if (trimmedLine.startsWith('## ')) {
       elements.push({ type: 'heading2', content: trimmedLine.slice(3) });
@@ -164,6 +166,13 @@ export async function generateWordDocument(markdown: string, filename: string): 
           text: cleanContent,
           heading: HeadingLevel.HEADING_3,
           spacing: { before: 240, after: 120 },
+        }));
+        break;
+      case 'heading4':
+        children.push(new Paragraph({
+          text: cleanContent,
+          heading: HeadingLevel.HEADING_4,
+          spacing: { before: 200, after: 100 },
         }));
         break;
       case 'list-item':
@@ -307,6 +316,12 @@ export async function generatePDFDocument(markdown: string, filename: string): P
         fontStyle = 'bold';
         lineHeight = 9;
         yPosition += 3;
+        break;
+      case 'heading4':
+        fontSize = 12;
+        fontStyle = 'bold';
+        lineHeight = 8;
+        yPosition += 2;
         break;
       case 'list-item':
         prefix = '• ';
