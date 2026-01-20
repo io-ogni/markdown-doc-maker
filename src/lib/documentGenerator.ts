@@ -2,12 +2,17 @@ import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, Ta
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 
+interface TextSegment {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+}
+
 interface ParsedElement {
   type: 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'paragraph' | 'list-item' | 'code' | 'blockquote' | 'table';
   content: string;
+  segments?: TextSegment[];
   tableData?: string[][];
-  bold?: boolean;
-  italic?: boolean;
 }
 
 function parseMarkdown(markdown: string): ParsedElement[] {
@@ -100,7 +105,7 @@ function parseMarkdown(markdown: string): ParsedElement[] {
     } else if (trimmedLine.startsWith('`') && trimmedLine.endsWith('`')) {
       elements.push({ type: 'code', content: trimmedLine.slice(1, -1) });
     } else {
-      elements.push({ type: 'paragraph', content: trimmedLine });
+      elements.push({ type: 'paragraph', content: trimmedLine, segments: parseInlineFormatting(trimmedLine) });
     }
     
     i++;
@@ -115,6 +120,35 @@ function cleanInlineFormatting(text: string): string {
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
     .replace(/`(.*?)`/g, '$1');
+}
+
+function parseInlineFormatting(text: string): TextSegment[] {
+  const segments: TextSegment[] = [];
+  // Regex to match **bold**, *italic*, ***bold+italic***, or plain text
+  const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|[^*`]+)/g;
+  let match;
+  
+  while ((match = regex.exec(text)) !== null) {
+    const fullMatch = match[0];
+    if (match[2]) {
+      // ***bold+italic***
+      segments.push({ text: match[2], bold: true, italic: true });
+    } else if (match[3]) {
+      // **bold**
+      segments.push({ text: match[3], bold: true });
+    } else if (match[4]) {
+      // *italic*
+      segments.push({ text: match[4], italic: true });
+    } else if (match[5]) {
+      // `code` - treat as plain for now
+      segments.push({ text: match[5] });
+    } else {
+      // Plain text
+      segments.push({ text: fullMatch });
+    }
+  }
+  
+  return segments.length > 0 ? segments : [{ text }];
 }
 
 export async function generateWordDocument(markdown: string, filename: string): Promise<void> {
@@ -205,10 +239,21 @@ export async function generateWordDocument(markdown: string, filename: string): 
         }
         break;
       default:
-        children.push(new Paragraph({
-          children: [new TextRun({ text: cleanContent })],
-          spacing: { before: 100, after: 100 },
-        }));
+        if (element.segments && element.segments.length > 0) {
+          children.push(new Paragraph({
+            children: element.segments.map(seg => new TextRun({ 
+              text: seg.text, 
+              bold: seg.bold,
+              italics: seg.italic,
+            })),
+            spacing: { before: 100, after: 100 },
+          }));
+        } else {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: cleanContent })],
+            spacing: { before: 100, after: 100 },
+          }));
+        }
     }
   }
 
