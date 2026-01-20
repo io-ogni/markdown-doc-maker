@@ -79,8 +79,13 @@ function parseMarkdown(markdown: string): ParsedElement[] {
       elements.push({ type: 'list-item', content: trimmedLine.slice(2) });
     } else if (trimmedLine.match(/^\d+\.\s/)) {
       elements.push({ type: 'list-item', content: trimmedLine.replace(/^\d+\.\s/, '') });
-    } else if (trimmedLine.startsWith('> ')) {
-      elements.push({ type: 'blockquote', content: trimmedLine.slice(2) });
+    } else if (trimmedLine.startsWith('>')) {
+      // Handle blockquotes - extract content after '>' (may be empty or have space)
+      const blockquoteContent = trimmedLine.slice(1).trim();
+      // Skip empty blockquote lines (just ">")
+      if (blockquoteContent) {
+        elements.push({ type: 'blockquote', content: blockquoteContent });
+      }
     } else if (trimmedLine.startsWith('```')) {
       // Multi-line code block
       i++;
