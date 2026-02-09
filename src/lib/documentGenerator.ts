@@ -81,9 +81,11 @@ function parseMarkdown(markdown: string): ParsedElement[] {
     } else if (trimmedLine.startsWith('# ')) {
       elements.push({ type: 'heading1', content: trimmedLine.slice(2) });
     } else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
-      elements.push({ type: 'list-item', content: trimmedLine.slice(2) });
+      const listContent = trimmedLine.slice(2);
+      elements.push({ type: 'list-item', content: listContent, segments: parseInlineFormatting(listContent) });
     } else if (trimmedLine.match(/^\d+\.\s/)) {
-      elements.push({ type: 'list-item', content: trimmedLine.replace(/^\d+\.\s/, '') });
+      const listContent = trimmedLine.replace(/^\d+\.\s/, '');
+      elements.push({ type: 'list-item', content: listContent, segments: parseInlineFormatting(listContent) });
     } else if (trimmedLine.startsWith('>')) {
       // Handle blockquotes - extract content after '>' (may be empty or have space)
       const blockquoteContent = trimmedLine.slice(1).trim();
@@ -215,11 +217,26 @@ export async function generateWordDocument(markdown: string, filename: string): 
         }));
         break;
       case 'list-item':
-        children.push(new Paragraph({
-          children: [new TextRun({ text: `• ${cleanContent}` })],
-          spacing: { before: 100, after: 100 },
-          indent: { left: 720 },
-        }));
+        if (element.segments && element.segments.length > 0) {
+          children.push(new Paragraph({
+            children: [
+              new TextRun({ text: '• ' }),
+              ...element.segments.map(seg => new TextRun({
+                text: seg.text,
+                bold: seg.bold,
+                italics: seg.italic,
+              })),
+            ],
+            spacing: { before: 100, after: 100 },
+            indent: { left: 720 },
+          }));
+        } else {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: `• ${cleanContent}` })],
+            spacing: { before: 100, after: 100 },
+            indent: { left: 720 },
+          }));
+        }
         break;
       case 'blockquote':
         children.push(new Paragraph({
@@ -299,11 +316,7 @@ export async function generatePDFDocument(markdown: string, filename: string): P
       const colCount = Math.max(...tableData.map(row => row.length));
       const colWidth = maxWidth / colCount;
       const cellPadding = 2;
-      const rowHeight = 8;
-
-      // Check if table fits on page
-      const tableHeight = tableData.length * rowHeight + 4;
-      checkPageBreak(tableHeight);
+      const cellLineHeight = 4.5;
 
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
@@ -311,6 +324,18 @@ export async function generatePDFDocument(markdown: string, filename: string): P
       for (let rowIdx = 0; rowIdx < tableData.length; rowIdx++) {
         const row = tableData[rowIdx];
         const isHeader = rowIdx === 0;
+
+        // Calculate row height based on wrapped text
+        pdf.setFont('helvetica', isHeader ? 'bold' : 'normal');
+        let maxLines = 1;
+        const cellWrappedLines: string[][] = [];
+        for (let colIdx = 0; colIdx < row.length; colIdx++) {
+          const cellText = cleanInlineFormatting(row[colIdx] || '');
+          const wrappedLines = pdf.splitTextToSize(cellText, colWidth - cellPadding * 2);
+          cellWrappedLines.push(wrappedLines);
+          maxLines = Math.max(maxLines, wrappedLines.length);
+        }
+        const rowHeight = maxLines * cellLineHeight + 4;
 
         checkPageBreak(rowHeight);
 
@@ -326,12 +351,13 @@ export async function generatePDFDocument(markdown: string, filename: string): P
           pdf.rect(margin + colIdx * colWidth, yPosition - 1, colWidth, rowHeight);
         }
 
-        // Draw text
+        // Draw wrapped text
         pdf.setFont('helvetica', isHeader ? 'bold' : 'normal');
-        for (let colIdx = 0; colIdx < row.length; colIdx++) {
-          const cellText = cleanInlineFormatting(row[colIdx] || '');
-          const truncatedText = cellText.length > 20 ? cellText.slice(0, 18) + '...' : cellText;
-          pdf.text(truncatedText, margin + colIdx * colWidth + cellPadding, yPosition + 4);
+        for (let colIdx = 0; colIdx < cellWrappedLines.length; colIdx++) {
+          const lines = cellWrappedLines[colIdx];
+          for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+            pdf.text(lines[lineIdx], margin + colIdx * colWidth + cellPadding, yPosition + 4 + lineIdx * cellLineHeight);
+          }
         }
 
         yPosition += rowHeight;
