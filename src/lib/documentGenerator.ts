@@ -118,6 +118,7 @@ function parseMarkdown(markdown: string): ParsedElement[] {
 
 function cleanInlineFormatting(text: string): string {
   return text
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
@@ -126,11 +127,13 @@ function cleanInlineFormatting(text: string): string {
 
 function parseInlineFormatting(text: string): TextSegment[] {
   const segments: TextSegment[] = [];
+  // First, replace markdown links [text](url) with just text
+  const preprocessed = text.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
   // Regex to match **bold**, *italic*, ***bold+italic***, or plain text
   const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|[^*`]+)/g;
   let match;
   
-  while ((match = regex.exec(text)) !== null) {
+  while ((match = regex.exec(preprocessed)) !== null) {
     const fullMatch = match[0];
     if (match[2]) {
       // ***bold+italic***
@@ -150,7 +153,7 @@ function parseInlineFormatting(text: string): TextSegment[] {
     }
   }
   
-  return segments.length > 0 ? segments : [{ text }];
+  return segments.length > 0 ? segments : [{ text: preprocessed }];
 }
 
 export async function generateWordDocument(markdown: string, filename: string): Promise<void> {
