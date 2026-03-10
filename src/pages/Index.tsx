@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ShieldCheck } from 'lucide-react';
 import { MarkdownConverter } from '@/components/MarkdownConverter';
 import {
   Dialog,
@@ -16,6 +17,7 @@ const licenses = [
 
 const Index = () => {
   const [licensesOpen, setLicensesOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background py-12 px-4 sm:px-6">
