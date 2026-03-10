@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ShieldCheck } from 'lucide-react';
 import { MarkdownConverter } from '@/components/MarkdownConverter';
 import {
   Dialog,
@@ -16,6 +17,7 @@ const licenses = [
 
 const Index = () => {
   const [licensesOpen, setLicensesOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background py-12 px-4 sm:px-6">
@@ -27,7 +29,18 @@ const Index = () => {
 
         <MarkdownConverter />
 
-        <footer className="mt-12 text-center text-sm text-muted-foreground space-y-2">
+        {/* Privacy shield button */}
+        <div className="flex justify-center mt-6">
+          <button
+            onClick={() => setPrivacyOpen(true)}
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-xl border border-border hover:border-muted-foreground/30"
+          >
+            <ShieldCheck className="w-4 h-4 text-success" />
+            Your file stays with you
+          </button>
+        </div>
+
+        <footer className="mt-8 text-center text-sm text-muted-foreground space-y-2">
           <p>
             Your documents are generated locally in your browser.
             <br />
@@ -41,6 +54,48 @@ const Index = () => {
           </button>
         </footer>
 
+        {/* Privacy dialog */}
+        <Dialog open={privacyOpen} onOpenChange={setPrivacyOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-success" />
+                Your file stays with you
+              </DialogTitle>
+              <DialogDescription>
+                Everything happens right here in your browser.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-2 text-sm text-muted-foreground">
+              <p>
+                This app converts your Markdown entirely on your device. Your content is <span className="text-foreground font-medium">never uploaded</span> to any server.
+              </p>
+              <ul className="space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="text-success mt-0.5">✓</span>
+                  <span>All parsing and document generation runs locally in JavaScript</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-success mt-0.5">✓</span>
+                  <span>No network requests are made with your content</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-success mt-0.5">✓</span>
+                  <span>No data is stored, tracked, or logged anywhere</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-success mt-0.5">✓</span>
+                  <span>The generated file is saved directly to your device</span>
+                </li>
+              </ul>
+              <p className="text-xs text-muted-foreground/70">
+                You can verify this by checking your browser's network tab — you'll see zero outgoing requests with your content.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Licenses dialog */}
         <Dialog open={licensesOpen} onOpenChange={setLicensesOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
