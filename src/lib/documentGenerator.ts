@@ -9,7 +9,7 @@ interface TextSegment {
 }
 
 interface ParsedElement {
-  type: 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'paragraph' | 'list-item' | 'code' | 'blockquote' | 'table';
+  type: 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'paragraph' | 'list-item' | 'code' | 'blockquote' | 'blockquote-list-item' | 'table';
   content: string;
   segments?: TextSegment[];
   tableData?: string[][];
@@ -91,7 +91,16 @@ function parseMarkdown(markdown: string): ParsedElement[] {
       const blockquoteContent = trimmedLine.slice(1).trim();
       // Skip empty blockquote lines (just ">")
       if (blockquoteContent) {
-        elements.push({ type: 'blockquote', content: blockquoteContent });
+        // Check if the blockquote content is a list item
+        if (blockquoteContent.startsWith('- ') || blockquoteContent.startsWith('* ')) {
+          const listContent = blockquoteContent.slice(2);
+          elements.push({ type: 'blockquote-list-item', content: listContent, segments: parseInlineFormatting(listContent) });
+        } else if (blockquoteContent.match(/^\d+\.\s/)) {
+          const listContent = blockquoteContent.replace(/^\d+\.\s/, '');
+          elements.push({ type: 'blockquote-list-item', content: listContent, segments: parseInlineFormatting(listContent) });
+        } else {
+          elements.push({ type: 'blockquote', content: blockquoteContent, segments: parseInlineFormatting(blockquoteContent) });
+        }
       }
     } else if (trimmedLine.startsWith('```')) {
       // Multi-line code block
@@ -242,11 +251,45 @@ export async function generateWordDocument(markdown: string, filename: string): 
         }
         break;
       case 'blockquote':
-        children.push(new Paragraph({
-          children: [new TextRun({ text: cleanContent, italics: true })],
-          spacing: { before: 200, after: 200 },
-          indent: { left: 720 },
-        }));
+        if (element.segments && element.segments.length > 0) {
+          children.push(new Paragraph({
+            children: element.segments.map(seg => new TextRun({
+              text: seg.text,
+              bold: seg.bold,
+              italics: true,
+            })),
+            spacing: { before: 120, after: 120 },
+            indent: { left: 720 },
+          }));
+        } else {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: cleanContent, italics: true })],
+            spacing: { before: 120, after: 120 },
+            indent: { left: 720 },
+          }));
+        }
+        break;
+      case 'blockquote-list-item':
+        if (element.segments && element.segments.length > 0) {
+          children.push(new Paragraph({
+            children: [
+              new TextRun({ text: '• ', italics: true }),
+              ...element.segments.map(seg => new TextRun({
+                text: seg.text,
+                bold: seg.bold,
+                italics: true,
+              })),
+            ],
+            spacing: { before: 60, after: 60 },
+            indent: { left: 1440 },
+          }));
+        } else {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: `• ${cleanContent}`, italics: true })],
+            spacing: { before: 60, after: 60 },
+            indent: { left: 1440 },
+          }));
+        }
         break;
       case 'code':
         const codeLines = cleanContent.split('\n');
@@ -407,6 +450,10 @@ export async function generatePDFDocument(markdown: string, filename: string): P
         break;
       case 'blockquote':
         fontStyle = 'italic';
+        break;
+      case 'blockquote-list-item':
+        fontStyle = 'italic';
+        prefix = '    • ';
         break;
       case 'code':
         pdf.setFont('courier', 'normal');
