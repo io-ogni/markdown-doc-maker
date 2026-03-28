@@ -91,7 +91,16 @@ function parseMarkdown(markdown: string): ParsedElement[] {
       const blockquoteContent = trimmedLine.slice(1).trim();
       // Skip empty blockquote lines (just ">")
       if (blockquoteContent) {
-        elements.push({ type: 'blockquote', content: blockquoteContent });
+        // Check if the blockquote content is a list item
+        if (blockquoteContent.startsWith('- ') || blockquoteContent.startsWith('* ')) {
+          const listContent = blockquoteContent.slice(2);
+          elements.push({ type: 'blockquote-list-item', content: listContent, segments: parseInlineFormatting(listContent) });
+        } else if (blockquoteContent.match(/^\d+\.\s/)) {
+          const listContent = blockquoteContent.replace(/^\d+\.\s/, '');
+          elements.push({ type: 'blockquote-list-item', content: listContent, segments: parseInlineFormatting(listContent) });
+        } else {
+          elements.push({ type: 'blockquote', content: blockquoteContent, segments: parseInlineFormatting(blockquoteContent) });
+        }
       }
     } else if (trimmedLine.startsWith('```')) {
       // Multi-line code block
