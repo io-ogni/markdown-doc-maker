@@ -9,7 +9,7 @@ interface TextSegment {
 }
 
 interface ParsedElement {
-  type: 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'paragraph' | 'list-item' | 'code' | 'blockquote' | 'table';
+  type: 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'paragraph' | 'list-item' | 'code' | 'blockquote' | 'blockquote-list-item' | 'table';
   content: string;
   segments?: TextSegment[];
   tableData?: string[][];
