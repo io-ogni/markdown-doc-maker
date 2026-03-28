@@ -451,6 +451,10 @@ export async function generatePDFDocument(markdown: string, filename: string): P
       case 'blockquote':
         fontStyle = 'italic';
         break;
+      case 'blockquote-list-item':
+        fontStyle = 'italic';
+        prefix = '    • ';
+        break;
       case 'code':
         pdf.setFont('courier', 'normal');
         fontSize = 10;
