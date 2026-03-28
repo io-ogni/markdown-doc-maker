@@ -251,11 +251,45 @@ export async function generateWordDocument(markdown: string, filename: string): 
         }
         break;
       case 'blockquote':
-        children.push(new Paragraph({
-          children: [new TextRun({ text: cleanContent, italics: true })],
-          spacing: { before: 200, after: 200 },
-          indent: { left: 720 },
-        }));
+        if (element.segments && element.segments.length > 0) {
+          children.push(new Paragraph({
+            children: element.segments.map(seg => new TextRun({
+              text: seg.text,
+              bold: seg.bold,
+              italics: true,
+            })),
+            spacing: { before: 120, after: 120 },
+            indent: { left: 720 },
+          }));
+        } else {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: cleanContent, italics: true })],
+            spacing: { before: 120, after: 120 },
+            indent: { left: 720 },
+          }));
+        }
+        break;
+      case 'blockquote-list-item':
+        if (element.segments && element.segments.length > 0) {
+          children.push(new Paragraph({
+            children: [
+              new TextRun({ text: '• ', italics: true }),
+              ...element.segments.map(seg => new TextRun({
+                text: seg.text,
+                bold: seg.bold,
+                italics: true,
+              })),
+            ],
+            spacing: { before: 60, after: 60 },
+            indent: { left: 1440 },
+          }));
+        } else {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: `• ${cleanContent}`, italics: true })],
+            spacing: { before: 60, after: 60 },
+            indent: { left: 1440 },
+          }));
+        }
         break;
       case 'code':
         const codeLines = cleanContent.split('\n');
