@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { FileText, FileDown, Type, Hash } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { FileText, FileDown, Type, Hash, Upload, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { generateWordDocument, generatePDFDocument } from '@/lib/documentGenerator';
+import { MarkdownPreview } from '@/components/MarkdownPreview';
 import { toast } from 'sonner';
 
 const MAX_CHARS = 200000;
@@ -15,6 +16,9 @@ export function MarkdownConverter() {
   const [markdown, setMarkdown] = useState('');
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const charCount = markdown.length;
   const charPercentage = (charCount / MAX_CHARS) * 100;
@@ -51,12 +55,58 @@ export function MarkdownConverter() {
   };
 
   const handleMarkdownChange = (value: string) => {
-    // Allow paste but truncate to MAX_CHARS
     setMarkdown(value.slice(0, MAX_CHARS));
   };
 
+  const readFile = useCallback((file: File) => {
+    if (!file.name.match(/\.(md|markdown|txt|text)$/i)) {
+      toast.error('Please drop a Markdown (.md) or text file');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (content) {
+        setMarkdown(content.slice(0, MAX_CHARS));
+        // Auto-set filename from file name if empty
+        if (!filename.trim()) {
+          const baseName = file.name.replace(/\.(md|markdown|txt|text)$/i, '');
+          setFilename(baseName);
+        }
+        toast.success(`Loaded "${file.name}"`);
+      }
+    };
+    reader.readAsText(file);
+  }, [filename]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) readFile(file);
+  }, [readFile]);
+
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) readFile(file);
+    e.target.value = '';
+  }, [readFile]);
+
   return (
-    <div className="w-full max-w-3xl mx-auto">
+    <div className="w-full max-w-5xl mx-auto">
       <div className="bg-card rounded-2xl shadow-card p-8 md:p-10 space-y-8">
         {/* Header */}
         <div className="text-center space-y-2">
@@ -136,17 +186,48 @@ export function MarkdownConverter() {
               <Hash className="w-4 h-4" />
               Markdown Content
             </Label>
-            <span
-              className={`text-xs font-mono ${
-                charPercentage > 90 ? 'text-destructive' : 'text-muted-foreground'
-              }`}
-            >
-              {charCount.toLocaleString()} / {MAX_CHARS.toLocaleString()}
-            </span>
+            <div className="flex items-center gap-3">
+              {/* File upload button */}
+              <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
+                <Upload className="w-3.5 h-3.5" />
+                Upload .md
+                <input
+                  type="file"
+                  accept=".md,.markdown,.txt,.text"
+                  onChange={handleFileInput}
+                  className="sr-only"
+                />
+              </label>
+              {/* Preview toggle */}
+              <button
+                onClick={() => setShowPreview(!showPreview)}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {showPreview ? 'Hide Preview' : 'Preview'}
+              </button>
+              <span
+                className={`text-xs font-mono ${
+                  charPercentage > 90 ? 'text-destructive' : 'text-muted-foreground'
+                }`}
+              >
+                {charCount.toLocaleString()} / {MAX_CHARS.toLocaleString()}
+              </span>
+            </div>
           </div>
-          <Textarea
-            id="markdown"
-            placeholder={`# Your Title
+
+          <div className={`grid gap-4 ${showPreview && markdown.trim() ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+            {/* Editor */}
+            <div
+              className="relative"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <Textarea
+                ref={textareaRef}
+                id="markdown"
+                placeholder={`# Your Title
 
 ## Introduction
 Write your content here using **markdown** syntax.
@@ -154,17 +235,41 @@ Write your content here using **markdown** syntax.
 ### Features
 - Easy to use
 - Supports headings, lists, and more
-- *Italic* and **bold** text
+  - Nested items too
+- *Italic*, **bold**, and ~~strikethrough~~
 
 > This is a quote
+
+---
+
+![Alt text](image-url)
 
 \`\`\`
 Code blocks are supported too
 \`\`\``}
-            value={markdown}
-            onChange={(e) => handleMarkdownChange(e.target.value)}
-            className="min-h-[300px] font-mono text-sm bg-editor border-editor-border focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all resize-y leading-relaxed"
-          />
+                value={markdown}
+                onChange={(e) => handleMarkdownChange(e.target.value)}
+                className="min-h-[300px] font-mono text-sm bg-editor border-editor-border focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all resize-y leading-relaxed"
+              />
+              {/* Drag overlay */}
+              {isDragging && (
+                <div className="absolute inset-0 rounded-xl border-2 border-dashed border-accent bg-accent/10 flex items-center justify-center z-10 pointer-events-none">
+                  <div className="flex flex-col items-center gap-2 text-accent">
+                    <Upload className="w-8 h-8" />
+                    <span className="text-sm font-medium">Drop your .md file here</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Live preview */}
+            {showPreview && markdown.trim() && (
+              <div className="min-h-[300px] max-h-[500px] overflow-y-auto rounded-xl border border-border bg-background p-4">
+                <MarkdownPreview markdown={markdown} />
+              </div>
+            )}
+          </div>
+
           {/* Progress bar */}
           <div className="h-1 bg-muted rounded-full overflow-hidden">
             <div
