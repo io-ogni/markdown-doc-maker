@@ -199,13 +199,15 @@ export function MarkdownConverter() {
                 />
               </label>
               {/* Preview toggle */}
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setShowPreview(!showPreview)}
-                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="h-8 px-3 text-xs gap-1.5"
               >
                 {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 {showPreview ? 'Hide Preview' : 'Preview'}
-              </button>
+              </Button>
               <span
                 className={`text-xs font-mono ${
                   charPercentage > 90 ? 'text-destructive' : 'text-muted-foreground'
