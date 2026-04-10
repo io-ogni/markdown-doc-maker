@@ -6,13 +6,17 @@ interface TextSegment {
   text: string;
   bold?: boolean;
   italic?: boolean;
+  strikethrough?: boolean;
 }
 
 interface ParsedElement {
-  type: 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'paragraph' | 'list-item' | 'code' | 'blockquote' | 'blockquote-list-item' | 'table';
+  type: 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'paragraph' | 'list-item' | 'nested-list-item' | 'code' | 'blockquote' | 'blockquote-list-item' | 'table' | 'horizontal-rule' | 'image';
   content: string;
   segments?: TextSegment[];
   tableData?: string[][];
+  indent?: number; // nesting level for lists
+  imageUrl?: string;
+  imageAlt?: string;
 }
 
 function parseMarkdown(markdown: string): ParsedElement[] {
@@ -21,7 +25,7 @@ function parseMarkdown(markdown: string): ParsedElement[] {
   let i = 0;
 
   while (i < lines.length) {
-    let line = lines[i];
+    const line = lines[i];
     const trimmedLine = line.trim();
     
     if (!trimmedLine) {
@@ -29,44 +33,47 @@ function parseMarkdown(markdown: string): ParsedElement[] {
       continue;
     }
 
+    // Horizontal rule
+    if (trimmedLine.match(/^(-{3,}|\*{3,}|_{3,})$/)) {
+      elements.push({ type: 'horizontal-rule', content: '' });
+      i++;
+      continue;
+    }
+
+    // Image: ![alt](url)
+    const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imageMatch) {
+      elements.push({ type: 'image', content: '', imageAlt: imageMatch[1], imageUrl: imageMatch[2] });
+      i++;
+      continue;
+    }
+
     // Check for table (line contains | and next line is separator)
     if (trimmedLine.includes('|') && i + 1 < lines.length) {
       const nextLine = lines[i + 1]?.trim() || '';
-      // Check if next line is a separator row (contains |, -, and optionally :)
       if (nextLine.match(/^\|?[\s\-:]+\|[\s\-:|]+\|?$/)) {
         const tableData: string[][] = [];
-        
-        // Parse header row - preserve empty cells for proper column alignment
         const rawHeaderCells = trimmedLine.split('|').map(cell => cell.trim());
-        // Remove leading/trailing empty strings from split (caused by leading/trailing |)
         const headerCells = rawHeaderCells.slice(
           rawHeaderCells[0] === '' ? 1 : 0,
           rawHeaderCells[rawHeaderCells.length - 1] === '' ? -1 : undefined
         );
         const colCount = headerCells.length;
         tableData.push(headerCells);
-        
-        i += 2; // Skip header and separator
-        
-        // Parse data rows - preserve empty cells
+        i += 2;
         while (i < lines.length) {
           const dataLine = lines[i]?.trim() || '';
           if (!dataLine.includes('|') || dataLine === '') break;
-          
           const rawDataCells = dataLine.split('|').map(cell => cell.trim());
-          // Remove leading/trailing empty strings from split
           const dataCells = rawDataCells.slice(
             rawDataCells[0] === '' ? 1 : 0,
             rawDataCells[rawDataCells.length - 1] === '' ? -1 : undefined
           );
-          // Pad or trim to match header column count
           while (dataCells.length < colCount) dataCells.push('');
           if (dataCells.length > colCount) dataCells.length = colCount;
-          
           tableData.push(dataCells);
           i++;
         }
-        
         elements.push({ type: 'table', content: '', tableData });
         continue;
       }
@@ -81,17 +88,27 @@ function parseMarkdown(markdown: string): ParsedElement[] {
     } else if (trimmedLine.startsWith('# ')) {
       elements.push({ type: 'heading1', content: trimmedLine.slice(2) });
     } else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
+      // Calculate indent level from leading whitespace
+      const leadingSpaces = line.length - line.trimStart().length;
+      const indentLevel = Math.floor(leadingSpaces / 2);
       const listContent = trimmedLine.slice(2);
-      elements.push({ type: 'list-item', content: listContent, segments: parseInlineFormatting(listContent) });
+      if (indentLevel > 0) {
+        elements.push({ type: 'nested-list-item', content: listContent, segments: parseInlineFormatting(listContent), indent: indentLevel });
+      } else {
+        elements.push({ type: 'list-item', content: listContent, segments: parseInlineFormatting(listContent) });
+      }
     } else if (trimmedLine.match(/^\d+\.\s/)) {
+      const leadingSpaces = line.length - line.trimStart().length;
+      const indentLevel = Math.floor(leadingSpaces / 2);
       const listContent = trimmedLine.replace(/^\d+\.\s/, '');
-      elements.push({ type: 'list-item', content: listContent, segments: parseInlineFormatting(listContent) });
+      if (indentLevel > 0) {
+        elements.push({ type: 'nested-list-item', content: listContent, segments: parseInlineFormatting(listContent), indent: indentLevel });
+      } else {
+        elements.push({ type: 'list-item', content: listContent, segments: parseInlineFormatting(listContent) });
+      }
     } else if (trimmedLine.startsWith('>')) {
-      // Handle blockquotes - extract content after '>' (may be empty or have space)
       const blockquoteContent = trimmedLine.slice(1).trim();
-      // Skip empty blockquote lines (just ">")
       if (blockquoteContent) {
-        // Check if the blockquote content is a list item
         if (blockquoteContent.startsWith('- ') || blockquoteContent.startsWith('* ')) {
           const listContent = blockquoteContent.slice(2);
           elements.push({ type: 'blockquote-list-item', content: listContent, segments: parseInlineFormatting(listContent) });
@@ -103,7 +120,6 @@ function parseMarkdown(markdown: string): ParsedElement[] {
         }
       }
     } else if (trimmedLine.startsWith('```')) {
-      // Multi-line code block
       i++;
       let codeContent = '';
       while (i < lines.length && !lines[i].trim().startsWith('```')) {
@@ -131,33 +147,29 @@ function cleanInlineFormatting(text: string): string {
     .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
     .replace(/\*\*(.*?)\*\*/g, '$1')
     .replace(/\*(.*?)\*/g, '$1')
+    .replace(/~~(.*?)~~/g, '$1')
     .replace(/`(.*?)`/g, '$1');
 }
 
 function parseInlineFormatting(text: string): TextSegment[] {
   const segments: TextSegment[] = [];
-  // First, replace markdown links [text](url) with just text
   const preprocessed = text.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
-  // Regex to match **bold**, *italic*, ***bold+italic***, or plain text
-  const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`|[^*`]+)/g;
+  const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|~~(.+?)~~|`(.+?)`|[^*~`]+)/g;
   let match;
   
   while ((match = regex.exec(preprocessed)) !== null) {
     const fullMatch = match[0];
     if (match[2]) {
-      // ***bold+italic***
       segments.push({ text: match[2], bold: true, italic: true });
     } else if (match[3]) {
-      // **bold**
       segments.push({ text: match[3], bold: true });
     } else if (match[4]) {
-      // *italic*
       segments.push({ text: match[4], italic: true });
     } else if (match[5]) {
-      // `code` - treat as plain for now
-      segments.push({ text: match[5] });
+      segments.push({ text: match[5], strikethrough: true });
+    } else if (match[6]) {
+      segments.push({ text: match[6] });
     } else {
-      // Plain text
       segments.push({ text: fullMatch });
     }
   }
@@ -170,6 +182,24 @@ export async function generateWordDocument(markdown: string, filename: string): 
   const children: (Paragraph | Table)[] = [];
 
   for (const element of elements) {
+    if (element.type === 'horizontal-rule') {
+      children.push(new Paragraph({
+        text: '',
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CCCCCC', space: 1 } },
+        spacing: { before: 200, after: 200 },
+      }));
+      continue;
+    }
+
+    if (element.type === 'image') {
+      // Images can't be fetched client-side easily, add as text placeholder
+      children.push(new Paragraph({
+        children: [new TextRun({ text: `[Image: ${element.imageAlt || element.imageUrl}]`, italics: true, color: '666666' })],
+        spacing: { before: 100, after: 100 },
+      }));
+      continue;
+    }
+
     if (element.type === 'table' && element.tableData) {
       const tableRows = element.tableData.map((row, rowIndex) => {
         return new TableRow({
@@ -191,8 +221,6 @@ export async function generateWordDocument(markdown: string, filename: string): 
         rows: tableRows,
         width: { size: 100, type: WidthType.PERCENTAGE },
       }));
-      
-      // Add spacing after table
       children.push(new Paragraph({ text: '', spacing: { after: 200 } }));
       continue;
     }
@@ -237,6 +265,7 @@ export async function generateWordDocument(markdown: string, filename: string): 
                 text: seg.text,
                 bold: seg.bold,
                 italics: seg.italic,
+                strike: seg.strikethrough,
               })),
             ],
             spacing: { before: 100, after: 100 },
@@ -250,6 +279,32 @@ export async function generateWordDocument(markdown: string, filename: string): 
           }));
         }
         break;
+      case 'nested-list-item': {
+        const indentLevel = element.indent || 1;
+        const indentDxa = 720 + indentLevel * 720;
+        if (element.segments && element.segments.length > 0) {
+          children.push(new Paragraph({
+            children: [
+              new TextRun({ text: indentLevel === 1 ? '◦ ' : '▪ ' }),
+              ...element.segments.map(seg => new TextRun({
+                text: seg.text,
+                bold: seg.bold,
+                italics: seg.italic,
+                strike: seg.strikethrough,
+              })),
+            ],
+            spacing: { before: 60, after: 60 },
+            indent: { left: indentDxa },
+          }));
+        } else {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: `${indentLevel === 1 ? '◦' : '▪'} ${cleanContent}` })],
+            spacing: { before: 60, after: 60 },
+            indent: { left: indentDxa },
+          }));
+        }
+        break;
+      }
       case 'blockquote':
         if (element.segments && element.segments.length > 0) {
           children.push(new Paragraph({
@@ -257,6 +312,7 @@ export async function generateWordDocument(markdown: string, filename: string): 
               text: seg.text,
               bold: seg.bold,
               italics: true,
+              strike: seg.strikethrough,
             })),
             spacing: { before: 120, after: 120 },
             indent: { left: 720 },
@@ -278,6 +334,7 @@ export async function generateWordDocument(markdown: string, filename: string): 
                 text: seg.text,
                 bold: seg.bold,
                 italics: true,
+                strike: seg.strikethrough,
               })),
             ],
             spacing: { before: 60, after: 60 },
@@ -308,6 +365,7 @@ export async function generateWordDocument(markdown: string, filename: string): 
               text: seg.text, 
               bold: seg.bold,
               italics: seg.italic,
+              strike: seg.strikethrough,
             })),
             spacing: { before: 100, after: 100 },
           }));
@@ -354,6 +412,29 @@ export async function generatePDFDocument(markdown: string, filename: string): P
   };
 
   for (const element of elements) {
+    // Horizontal rule
+    if (element.type === 'horizontal-rule') {
+      checkPageBreak(10);
+      yPosition += 4;
+      pdf.setDrawColor(200, 200, 200);
+      pdf.setLineWidth(0.5);
+      pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 6;
+      continue;
+    }
+
+    // Image placeholder
+    if (element.type === 'image') {
+      checkPageBreak(10);
+      pdf.setFont('helvetica', 'italic');
+      pdf.setFontSize(10);
+      pdf.setTextColor(120, 120, 120);
+      pdf.text(`[Image: ${element.imageAlt || element.imageUrl}]`, margin, yPosition);
+      pdf.setTextColor(0, 0, 0);
+      yPosition += 8;
+      continue;
+    }
+
     // Handle tables
     if (element.type === 'table' && element.tableData) {
       const tableData = element.tableData;
@@ -371,7 +452,6 @@ export async function generatePDFDocument(markdown: string, filename: string): P
         const row = tableData[rowIdx];
         const isHeader = rowIdx === 0;
 
-        // Calculate row height based on wrapped text
         pdf.setFont('helvetica', isHeader ? 'bold' : 'normal');
         let maxLines = 1;
         const cellWrappedLines: string[][] = [];
@@ -385,19 +465,16 @@ export async function generatePDFDocument(markdown: string, filename: string): P
 
         checkPageBreak(rowHeight);
 
-        // Draw row background for header
         if (isHeader) {
           pdf.setFillColor(240, 240, 240);
           pdf.rect(margin, yPosition - 1, maxWidth, rowHeight, 'F');
         }
 
-        // Draw cell borders
         pdf.setDrawColor(200, 200, 200);
         for (let colIdx = 0; colIdx < colCount; colIdx++) {
           pdf.rect(margin + colIdx * colWidth, yPosition - 1, colWidth, rowHeight);
         }
 
-        // Draw wrapped text
         pdf.setFont('helvetica', isHeader ? 'bold' : 'normal');
         for (let colIdx = 0; colIdx < cellWrappedLines.length; colIdx++) {
           const lines = cellWrappedLines[colIdx];
@@ -419,6 +496,7 @@ export async function generatePDFDocument(markdown: string, filename: string): P
     let fontStyle: 'normal' | 'bold' | 'italic' = 'normal';
     let lineHeight = 7;
     let prefix = '';
+    let indentX = 0;
 
     switch (element.type) {
       case 'heading1':
@@ -447,13 +525,22 @@ export async function generatePDFDocument(markdown: string, filename: string): P
         break;
       case 'list-item':
         prefix = '• ';
+        indentX = 5;
         break;
+      case 'nested-list-item': {
+        const level = element.indent || 1;
+        prefix = level === 1 ? '◦ ' : '▪ ';
+        indentX = 5 + level * 5;
+        break;
+      }
       case 'blockquote':
         fontStyle = 'italic';
+        indentX = 5;
         break;
       case 'blockquote-list-item':
         fontStyle = 'italic';
-        prefix = '    • ';
+        prefix = '• ';
+        indentX = 10;
         break;
       case 'code':
         pdf.setFont('courier', 'normal');
@@ -467,11 +554,12 @@ export async function generatePDFDocument(markdown: string, filename: string): P
     pdf.setFontSize(fontSize);
 
     const text = prefix + cleanContent;
-    const lines = pdf.splitTextToSize(text, maxWidth);
+    const effectiveMaxWidth = maxWidth - indentX;
+    const lines = pdf.splitTextToSize(text, effectiveMaxWidth);
 
     for (const line of lines) {
       checkPageBreak(lineHeight);
-      pdf.text(line, margin, yPosition);
+      pdf.text(line, margin + indentX, yPosition);
       yPosition += lineHeight;
     }
 
