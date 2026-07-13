@@ -89,7 +89,7 @@ const Index = () => {
                 </li>
               </ul>
               <p className="text-xs text-muted-foreground/70">
-                You can verify this by checking your browser's network tab — you'll see zero outgoing requests with your content.
+                You can verify this in your browser's network tab: everything loads from this site alone — no third-party servers — and none of your content is ever sent anywhere.
               </p>
             </div>
           </DialogContent>
