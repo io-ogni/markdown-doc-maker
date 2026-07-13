@@ -1,73 +1,34 @@
-# Welcome to your Lovable project
+# Markdown to Document Converter
 
-## Project info
+Convert Markdown into cleanly formatted **PDF** or **Word (.docx)** files, entirely in your browser.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+- **Private by design** — parsing and document generation run locally in your browser. Nothing is uploaded, stored, tracked, or logged.
+- **Free** — no account, no limits.
+- Built with jsPDF, docx, and file-saver (all MIT licensed).
 
-## How can I edit this code?
+## Development
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Requires Node.js (or Bun).
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+npm install
+npm run dev      # http://localhost:8080
+npm run build    # outputs static site to dist/
+npm run preview  # serve the production build locally
 ```
 
-**Edit a file directly in GitHub**
+## Deployment
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Static single-page app hosted on **GitHub Pages**, auto-deployed on every push to `main` via `.github/workflows/deploy-pages.yml` (`vite build` → `dist/`, with `index.html` copied to `404.html` for SPA routing).
 
-**Use GitHub Codespaces**
+The custom domain is set in `public/CNAME`. DNS lives at **Strato**: the subdomain is a `CNAME` record pointing to `io-ogni.github.io`, with "Enforce HTTPS" enabled in the repo's Pages settings.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Tech stack
 
-## What technologies are used for this project?
+Vite · React · TypeScript · Tailwind CSS · shadcn/ui
 
-This project is built with:
+## License
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+See [LICENSE](./LICENSE).
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+© Ioana Ognibeni. All rights reserved.
