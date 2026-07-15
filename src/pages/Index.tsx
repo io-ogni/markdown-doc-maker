@@ -46,12 +46,32 @@ const Index = () => {
             <br />
             Nothing is stored on any server.
           </p>
-          <button
-            onClick={() => setLicensesOpen(true)}
-            className="text-xs text-muted-foreground/70 hover:text-foreground underline underline-offset-2 transition-colors"
-          >
-            Open Source Licenses
-          </button>
+          <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground/70">
+            <a
+              href="https://ioana-ognibeni.eu/impressum/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground underline underline-offset-2 transition-colors"
+            >
+              Impressum
+            </a>
+            <span aria-hidden="true">·</span>
+            <a
+              href="https://ioana-ognibeni.eu/privacy-policy/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground underline underline-offset-2 transition-colors"
+            >
+              Privacy Policy
+            </a>
+            <span aria-hidden="true">·</span>
+            <button
+              onClick={() => setLicensesOpen(true)}
+              className="hover:text-foreground underline underline-offset-2 transition-colors"
+            >
+              Open Source Licenses
+            </button>
+          </div>
         </footer>
 
         {/* Privacy dialog */}
