@@ -72,6 +72,14 @@ const Index = () => {
               Open Source Licenses
             </button>
           </div>
+          <p className="text-xs text-muted-foreground/50">
+            Made by{" "}
+            <a href="https://ioana-ognibeni.eu" target="_blank" rel="noopener noreferrer" className="hover:text-foreground underline underline-offset-2 transition-colors">Ioana Ognibeni</a>
+            {" "}with{" "}
+            <a href="https://claude.com/claude-code" target="_blank" rel="noopener noreferrer" className="hover:text-foreground underline underline-offset-2 transition-colors">Claude</a>
+            {" "}&amp;{" "}
+            <a href="https://lovable.dev" target="_blank" rel="noopener noreferrer" className="hover:text-foreground underline underline-offset-2 transition-colors">Lovable</a>
+          </p>
         </footer>
 
         {/* Privacy dialog */}
