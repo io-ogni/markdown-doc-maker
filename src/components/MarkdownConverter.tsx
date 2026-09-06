@@ -207,7 +207,7 @@ Fenced code blocks, too
 ---`}
                 value={markdown}
                 onChange={(e) => handleMarkdownChange(e.target.value)}
-                className="min-h-[300px] font-mono text-sm bg-editor border-editor-border placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all resize-y leading-relaxed"
+                className="h-[420px] font-mono text-sm bg-editor border-editor-border placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all resize-y leading-relaxed"
               />
               {/* Drag overlay */}
               {isDragging && (
@@ -222,7 +222,7 @@ Fenced code blocks, too
 
             {/* Live preview */}
             {showPreview && markdown.trim() && (
-              <div className="min-h-[300px] max-h-[500px] overflow-y-auto rounded-xl border border-border bg-background p-4">
+              <div className="h-[420px] overflow-y-auto rounded-xl border border-border bg-background p-4">
                 <MarkdownPreview markdown={markdown} />
               </div>
             )}
