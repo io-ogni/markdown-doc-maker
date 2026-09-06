@@ -65,7 +65,9 @@ const printCss = `
     page-break-inside: avoid;
   }
   pre code { background: none; padding: 0; }
-  table { border-collapse: collapse; width: 100%; margin: 1em 0; page-break-inside: avoid; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  thead { display: table-header-group; } /* repeat header row on each page */
+  tr { break-inside: avoid; } /* don't split a single row, but allow the table to flow across pages */
   th, td { border: 1px solid #d8d3ca; padding: 0.5em 0.75em; text-align: left; }
   th { background: #f4f1ec; font-weight: 600; }
   img { max-width: 100%; }
