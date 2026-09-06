@@ -115,42 +115,27 @@ export function MarkdownConverter() {
           </p>
         </div>
 
-        {/* Filename Input */}
+        {/* Markdown Input — the first thing you do: paste or upload */}
         <div className="space-y-3">
-          <Label htmlFor="filename" className="text-sm font-medium flex items-center gap-2">
-            <Type className="w-4 h-4" />
-            Document Name
-            <span className="text-xs font-normal text-muted-foreground">(optional)</span>
-          </Label>
-          <Input
-            id="filename"
-            type="text"
-            placeholder="document"
-            value={filename}
-            onChange={(e) => setFilename(e.target.value)}
-            className="h-12 text-base bg-editor border-editor-border focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
-          />
-        </div>
-
-        {/* Markdown Input */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <Label htmlFor="markdown" className="text-sm font-medium flex items-center gap-2">
               <Hash className="w-4 h-4" />
-              Markdown Content
+              Paste your Markdown
             </Label>
-            <div className="flex items-center gap-3">
-              {/* File upload button */}
-              <label className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
-                <Upload className="w-3.5 h-3.5" />
-                Upload .md
-                <input
-                  type="file"
-                  accept=".md,.markdown,.txt,.text"
-                  onChange={handleFileInput}
-                  className="sr-only"
-                />
-              </label>
+            <div className="flex items-center gap-2">
+              {/* Upload — sits right next to paste as the alternative option */}
+              <Button asChild variant="outline" size="sm" className="h-8 px-3 text-xs gap-1.5">
+                <label className="cursor-pointer">
+                  <Upload className="w-3.5 h-3.5" />
+                  Upload file
+                  <input
+                    type="file"
+                    accept=".md,.markdown,.txt,.text"
+                    onChange={handleFileInput}
+                    className="sr-only"
+                  />
+                </label>
+              </Button>
               {/* Preview toggle */}
               <Button
                 variant="outline"
@@ -238,6 +223,23 @@ Code blocks are supported too
               style={{ width: `${Math.min(charPercentage, 100)}%` }}
             />
           </div>
+        </div>
+
+        {/* Filename Input */}
+        <div className="space-y-3">
+          <Label htmlFor="filename" className="text-sm font-medium flex items-center gap-2">
+            <Type className="w-4 h-4" />
+            Document Name
+            <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+          </Label>
+          <Input
+            id="filename"
+            type="text"
+            placeholder="document"
+            value={filename}
+            onChange={(e) => setFilename(e.target.value)}
+            className="h-12 text-base bg-editor border-editor-border focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
+          />
         </div>
 
         {/* Format + Generate */}
