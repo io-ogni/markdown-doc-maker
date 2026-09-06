@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { generateWordDocument, generatePDFDocument } from '@/lib/documentGenerator';
+import { generateHTMLPrintPDF } from '@/lib/htmlPdfGenerator';
 import { MarkdownPreview } from '@/components/MarkdownPreview';
 import { toast } from 'sonner';
 
@@ -14,6 +15,7 @@ export function MarkdownConverter() {
   const [filename, setFilename] = useState('');
   const [markdown, setMarkdown] = useState('');
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf');
+  const [useHtmlPdf, setUseHtmlPdf] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPreview, setShowPreview] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
@@ -34,8 +36,13 @@ export function MarkdownConverter() {
       const sanitizedFilename = filename.replace(/[^a-zA-Z0-9-_\s]/g, '').trim() || 'document';
 
       if (outputFormat === 'pdf') {
-        await generatePDFDocument(markdown, sanitizedFilename);
-        toast.success('PDF downloaded successfully!');
+        if (useHtmlPdf) {
+          generateHTMLPrintPDF(markdown, sanitizedFilename);
+          toast.success('Opening print dialog — choose "Save as PDF".');
+        } else {
+          await generatePDFDocument(markdown, sanitizedFilename);
+          toast.success('PDF downloaded successfully!');
+        }
       } else {
         await generateWordDocument(markdown, sanitizedFilename);
         toast.success('Word document downloaded successfully!');
@@ -289,6 +296,23 @@ Fenced code blocks, too
               ))}
             </div>
           </div>
+
+          {/* PDF engine (prototype) — compare jsPDF vs browser print-to-PDF */}
+          {outputFormat === 'pdf' && (
+            <label className="flex items-start gap-2.5 text-xs text-muted-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={useHtmlPdf}
+                onChange={(e) => setUseHtmlPdf(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-accent cursor-pointer"
+              />
+              <span>
+                <span className="font-medium text-foreground">New HTML renderer (beta)</span> — pixel-perfect
+                match to the preview, full Unicode/emoji, syntax-ready. Opens your browser's print dialog
+                (choose "Save as PDF") instead of downloading directly.
+              </span>
+            </label>
+          )}
 
           {/* Generate Button */}
           <Button
