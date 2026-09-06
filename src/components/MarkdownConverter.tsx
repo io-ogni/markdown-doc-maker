@@ -167,29 +167,37 @@ export function MarkdownConverter() {
               <Textarea
                 ref={textareaRef}
                 id="markdown"
-                placeholder={`# Your Title
+                placeholder={`# Document Title
 
 ## Introduction
-Write your content here using **markdown** syntax.
+Write in **Markdown** — get a clean PDF or Word file.
 
-### Features
-- Easy to use
-- Supports headings, lists, and more
-  - Nested items too
-- *Italic*, **bold**, and ~~strikethrough~~
+### What's supported
+- **Bold**, *italic*, and ~~strikethrough~~
+- Nested lists
+  - like this one
+- Ordered lists:
 
-> This is a quote
+1. First step
+2. Second step
 
----
+### Tables
+| Feature   | Included |
+| --------- | -------- |
+| Headings  | Yes      |
+| Tables    | Yes      |
+| Code      | Yes      |
 
-![Alt text](image-url)
+> Blockquotes for notes and callouts.
 
 \`\`\`
-Code blocks are supported too
-\`\`\``}
+Fenced code blocks, too
+\`\`\`
+
+---`}
                 value={markdown}
                 onChange={(e) => handleMarkdownChange(e.target.value)}
-                className="min-h-[300px] font-mono text-sm bg-editor border-editor-border focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all resize-y leading-relaxed"
+                className="min-h-[300px] font-mono text-sm bg-editor border-editor-border placeholder:text-muted-foreground/50 focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all resize-y leading-relaxed"
               />
               {/* Drag overlay */}
               {isDragging && (
