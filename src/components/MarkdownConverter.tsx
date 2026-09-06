@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { generateWordDocument, generatePDFDocument } from '@/lib/documentGenerator';
 import { MarkdownPreview } from '@/components/MarkdownPreview';
 import { toast } from 'sonner';
@@ -16,7 +15,7 @@ export function MarkdownConverter() {
   const [markdown, setMarkdown] = useState('');
   const [outputFormat, setOutputFormat] = useState<'pdf' | 'docx'>('pdf');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -24,11 +23,6 @@ export function MarkdownConverter() {
   const charPercentage = (charCount / MAX_CHARS) * 100;
 
   const handleGenerate = async () => {
-    if (!filename.trim()) {
-      toast.error('Please enter a filename');
-      return;
-    }
-
     if (!markdown.trim()) {
       toast.error('Please enter some markdown content');
       return;
@@ -114,10 +108,10 @@ export function MarkdownConverter() {
             <FileText className="w-7 h-7 text-foreground" />
           </div>
           <h1 className="text-2xl md:text-3xl font-semibold text-foreground tracking-tight">
-            Markdown to Document
+            Private Markdown to PDF &amp; Word Converter
           </h1>
           <p className="text-muted-foreground">
-            Convert your markdown to beautifully formatted PDF or Word files
+            Convert Markdown to beautifully formatted PDF or Word files — entirely in your browser. Nothing is uploaded, nothing leaves your device.
           </p>
         </div>
 
@@ -126,57 +120,16 @@ export function MarkdownConverter() {
           <Label htmlFor="filename" className="text-sm font-medium flex items-center gap-2">
             <Type className="w-4 h-4" />
             Document Name
+            <span className="text-xs font-normal text-muted-foreground">(optional)</span>
           </Label>
           <Input
             id="filename"
             type="text"
-            placeholder="my-document"
+            placeholder="document"
             value={filename}
             onChange={(e) => setFilename(e.target.value)}
             className="h-12 text-base bg-editor border-editor-border focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all"
           />
-        </div>
-
-        {/* Format Selection */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium flex items-center gap-2">
-            <FileDown className="w-4 h-4" />
-            Output Format
-          </Label>
-          <RadioGroup
-            value={outputFormat}
-            onValueChange={(value) => setOutputFormat(value as 'pdf' | 'docx')}
-            className="flex gap-4"
-          >
-            <div className="flex-1">
-              <Label
-                htmlFor="pdf"
-                className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  outputFormat === 'pdf'
-                    ? 'border-accent bg-accent/5'
-                    : 'border-border hover:border-muted-foreground/30'
-                }`}
-              >
-                <RadioGroupItem value="pdf" id="pdf" className="sr-only" />
-                <span className="font-medium">PDF</span>
-                <span className="text-xs text-muted-foreground">.pdf</span>
-              </Label>
-            </div>
-            <div className="flex-1">
-              <Label
-                htmlFor="docx"
-                className={`flex items-center justify-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                  outputFormat === 'docx'
-                    ? 'border-accent bg-accent/5'
-                    : 'border-border hover:border-muted-foreground/30'
-                }`}
-              >
-                <RadioGroupItem value="docx" id="docx" className="sr-only" />
-                <span className="font-medium">Word</span>
-                <span className="text-xs text-muted-foreground">.docx</span>
-              </Label>
-            </div>
-          </RadioGroup>
         </div>
 
         {/* Markdown Input */}
@@ -287,10 +240,47 @@ Code blocks are supported too
           </div>
         </div>
 
-        {/* Generate Button */}
-        <Button
+        {/* Format + Generate */}
+        <div className="space-y-4 pt-2 border-t border-border">
+          {/* Format toggle */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <Label className="text-sm font-medium flex items-center gap-2 shrink-0">
+              <FileDown className="w-4 h-4" />
+              Save as
+            </Label>
+            <div
+              role="radiogroup"
+              aria-label="Output format"
+              className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-muted flex-1"
+            >
+              {([
+                { value: 'pdf', label: 'PDF', ext: '.pdf' },
+                { value: 'docx', label: 'Word', ext: '.docx' },
+              ] as const).map((fmt) => (
+                <button
+                  key={fmt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={outputFormat === fmt.value}
+                  onClick={() => setOutputFormat(fmt.value)}
+                  className={`flex items-center justify-center gap-2 h-11 rounded-lg text-sm font-medium transition-all ${
+                    outputFormat === fmt.value
+                      ? 'bg-card text-foreground shadow-sm ring-1 ring-accent/40'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  {fmt.label}
+                  <span className="text-xs text-muted-foreground">{fmt.ext}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Generate Button */}
+          <Button
           onClick={handleGenerate}
-          disabled={isGenerating || !filename.trim() || !markdown.trim()}
+          disabled={isGenerating || !markdown.trim()}
           className="w-full h-14 text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl transition-all disabled:opacity-50"
         >
           {isGenerating ? (
@@ -319,7 +309,8 @@ Code blocks are supported too
               Generate & Download {outputFormat.toUpperCase()}
             </span>
           )}
-        </Button>
+          </Button>
+        </div>
       </div>
     </div>
   );
