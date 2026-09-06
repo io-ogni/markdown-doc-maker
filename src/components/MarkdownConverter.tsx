@@ -118,12 +118,13 @@ export function MarkdownConverter() {
         {/* Markdown Input — the first thing you do: paste or upload */}
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <Label htmlFor="markdown" className="text-sm font-medium flex items-center gap-2">
-              <Hash className="w-4 h-4" />
-              Paste your Markdown
-            </Label>
+            {/* Step 1: paste or upload — kept together as one action */}
             <div className="flex items-center gap-2">
-              {/* Upload — sits right next to paste as the alternative option */}
+              <Label htmlFor="markdown" className="text-sm font-medium flex items-center gap-2">
+                <Hash className="w-4 h-4" />
+                Paste your Markdown
+              </Label>
+              <span className="text-xs text-muted-foreground">or</span>
               <Button asChild variant="outline" size="sm" className="h-8 px-3 text-xs gap-1.5">
                 <label className="cursor-pointer">
                   <Upload className="w-3.5 h-3.5" />
@@ -136,6 +137,8 @@ export function MarkdownConverter() {
                   />
                 </label>
               </Button>
+            </div>
+            <div className="flex items-center gap-2">
               {/* Preview toggle */}
               <Button
                 variant="outline"
