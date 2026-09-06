@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, ExternalHyperlink } from 'docx';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 
@@ -7,6 +7,7 @@ interface TextSegment {
   bold?: boolean;
   italic?: boolean;
   strikethrough?: boolean;
+  href?: string; // set for link segments
 }
 
 interface ParsedElement {
@@ -17,12 +18,17 @@ interface ParsedElement {
   indent?: number; // nesting level for lists
   imageUrl?: string;
   imageAlt?: string;
+  ordered?: boolean; // ordered (numbered) list item
+  ordinal?: number; // the number to render for ordered items
 }
 
 function parseMarkdown(markdown: string): ParsedElement[] {
   const lines = markdown.split('\n');
   const elements: ParsedElement[] = [];
   let i = 0;
+  // Sequential counters per indent level for ordered lists, so numbering
+  // matches what the preview (marked/GFM) shows regardless of typed numbers.
+  let orderedCounters: number[] = [];
 
   while (i < lines.length) {
     const line = lines[i];
@@ -35,6 +41,7 @@ function parseMarkdown(markdown: string): ParsedElement[] {
 
     // Horizontal rule
     if (trimmedLine.match(/^(-{3,}|\*{3,}|_{3,})$/)) {
+      orderedCounters = [];
       elements.push({ type: 'horizontal-rule', content: '' });
       i++;
       continue;
@@ -43,6 +50,7 @@ function parseMarkdown(markdown: string): ParsedElement[] {
     // Image: ![alt](url)
     const imageMatch = trimmedLine.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (imageMatch) {
+      orderedCounters = [];
       elements.push({ type: 'image', content: '', imageAlt: imageMatch[1], imageUrl: imageMatch[2] });
       i++;
       continue;
@@ -74,6 +82,7 @@ function parseMarkdown(markdown: string): ParsedElement[] {
           tableData.push(dataCells);
           i++;
         }
+        orderedCounters = [];
         elements.push({ type: 'table', content: '', tableData });
         continue;
       }
@@ -92,6 +101,8 @@ function parseMarkdown(markdown: string): ParsedElement[] {
       const leadingSpaces = line.length - line.trimStart().length;
       const indentLevel = Math.floor(leadingSpaces / 2);
       const listContent = trimmedLine.slice(2);
+      // A bullet ends any ordered run at this level and deeper.
+      orderedCounters = orderedCounters.slice(0, indentLevel);
       if (indentLevel > 0) {
         elements.push({ type: 'nested-list-item', content: listContent, segments: parseInlineFormatting(listContent), indent: indentLevel });
       } else {
@@ -101,10 +112,14 @@ function parseMarkdown(markdown: string): ParsedElement[] {
       const leadingSpaces = line.length - line.trimStart().length;
       const indentLevel = Math.floor(leadingSpaces / 2);
       const listContent = trimmedLine.replace(/^\d+\.\s/, '');
+      // Drop any deeper levels, then increment this level's running count.
+      orderedCounters.length = indentLevel + 1;
+      orderedCounters[indentLevel] = (orderedCounters[indentLevel] || 0) + 1;
+      const ordinal = orderedCounters[indentLevel];
       if (indentLevel > 0) {
-        elements.push({ type: 'nested-list-item', content: listContent, segments: parseInlineFormatting(listContent), indent: indentLevel });
+        elements.push({ type: 'nested-list-item', content: listContent, segments: parseInlineFormatting(listContent), indent: indentLevel, ordered: true, ordinal });
       } else {
-        elements.push({ type: 'list-item', content: listContent, segments: parseInlineFormatting(listContent) });
+        elements.push({ type: 'list-item', content: listContent, segments: parseInlineFormatting(listContent), ordered: true, ordinal });
       }
     } else if (trimmedLine.startsWith('>')) {
       const blockquoteContent = trimmedLine.slice(1).trim();
@@ -134,7 +149,14 @@ function parseMarkdown(markdown: string): ParsedElement[] {
     } else {
       elements.push({ type: 'paragraph', content: trimmedLine, segments: parseInlineFormatting(trimmedLine) });
     }
-    
+
+    // Any non-list block ends the current ordered run (list arms keep/adjust
+    // their own counters above; blank lines `continue` before reaching here).
+    const last = elements[elements.length - 1];
+    if (last && last.type !== 'list-item' && last.type !== 'nested-list-item') {
+      orderedCounters = [];
+    }
+
     i++;
   }
 
@@ -153,28 +175,54 @@ function cleanInlineFormatting(text: string): string {
 
 function parseInlineFormatting(text: string): TextSegment[] {
   const segments: TextSegment[] = [];
-  const preprocessed = text.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
-  const regex = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|~~(.+?)~~|`(.+?)`|[^*~`]+)/g;
+  // Order matters: links first, then bold/italic/strike/code, then plain runs,
+  // then a single leftover special char (so a stray '[' or '`' isn't dropped).
+  const regex = /\[([^\]]+)\]\(([^)]+)\)|\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|~~(.+?)~~|`(.+?)`|[^*~`[]+|[*~`[]/g;
   let match;
-  
-  while ((match = regex.exec(preprocessed)) !== null) {
-    const fullMatch = match[0];
-    if (match[2]) {
-      segments.push({ text: match[2], bold: true, italic: true });
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match[1] !== undefined) {
+      segments.push({ text: match[1], href: match[2] });
     } else if (match[3]) {
-      segments.push({ text: match[3], bold: true });
+      segments.push({ text: match[3], bold: true, italic: true });
     } else if (match[4]) {
-      segments.push({ text: match[4], italic: true });
+      segments.push({ text: match[4], bold: true });
     } else if (match[5]) {
-      segments.push({ text: match[5], strikethrough: true });
+      segments.push({ text: match[5], italic: true });
     } else if (match[6]) {
-      segments.push({ text: match[6] });
+      segments.push({ text: match[6], strikethrough: true });
+    } else if (match[7]) {
+      segments.push({ text: match[7] });
     } else {
-      segments.push({ text: fullMatch });
+      segments.push({ text: match[0] });
     }
   }
-  
-  return segments.length > 0 ? segments : [{ text: preprocessed }];
+
+  return segments.length > 0 ? segments : [{ text }];
+}
+
+// Build Word runs from parsed segments, rendering links as real hyperlinks.
+function buildWordRuns(segments: TextSegment[], forceItalic = false): (TextRun | ExternalHyperlink)[] {
+  return segments.map(seg => {
+    if (seg.href) {
+      return new ExternalHyperlink({
+        children: [new TextRun({
+          text: seg.text,
+          bold: seg.bold,
+          italics: seg.italic || forceItalic,
+          strike: seg.strikethrough,
+          style: 'Hyperlink',
+        })],
+        link: seg.href,
+      });
+    }
+    return new TextRun({
+      text: seg.text,
+      bold: seg.bold,
+      italics: seg.italic || forceItalic,
+      strike: seg.strikethrough,
+    });
+  });
 }
 
 export async function generateWordDocument(markdown: string, filename: string): Promise<void> {
@@ -256,99 +304,57 @@ export async function generateWordDocument(markdown: string, filename: string): 
           spacing: { before: 200, after: 100 },
         }));
         break;
-      case 'list-item':
-        if (element.segments && element.segments.length > 0) {
-          children.push(new Paragraph({
-            children: [
-              new TextRun({ text: '• ' }),
-              ...element.segments.map(seg => new TextRun({
-                text: seg.text,
-                bold: seg.bold,
-                italics: seg.italic,
-                strike: seg.strikethrough,
-              })),
-            ],
-            spacing: { before: 100, after: 100 },
-            indent: { left: 720 },
-          }));
-        } else {
-          children.push(new Paragraph({
-            children: [new TextRun({ text: `• ${cleanContent}` })],
-            spacing: { before: 100, after: 100 },
-            indent: { left: 720 },
-          }));
-        }
+      case 'list-item': {
+        const marker = element.ordered ? `${element.ordinal}. ` : '• ';
+        const runs = element.segments && element.segments.length > 0
+          ? buildWordRuns(element.segments)
+          : [new TextRun({ text: cleanContent })];
+        children.push(new Paragraph({
+          children: [new TextRun({ text: marker }), ...runs],
+          spacing: { before: 100, after: 100 },
+          indent: { left: 720 },
+        }));
         break;
+      }
       case 'nested-list-item': {
         const indentLevel = element.indent || 1;
         const indentDxa = 720 + indentLevel * 720;
-        if (element.segments && element.segments.length > 0) {
-          children.push(new Paragraph({
-            children: [
-              new TextRun({ text: indentLevel === 1 ? '◦ ' : '▪ ' }),
-              ...element.segments.map(seg => new TextRun({
-                text: seg.text,
-                bold: seg.bold,
-                italics: seg.italic,
-                strike: seg.strikethrough,
-              })),
-            ],
-            spacing: { before: 60, after: 60 },
-            indent: { left: indentDxa },
-          }));
-        } else {
-          children.push(new Paragraph({
-            children: [new TextRun({ text: `${indentLevel === 1 ? '◦' : '▪'} ${cleanContent}` })],
-            spacing: { before: 60, after: 60 },
-            indent: { left: indentDxa },
-          }));
-        }
+        const marker = element.ordered
+          ? `${element.ordinal}. `
+          : (indentLevel === 1 ? '◦ ' : '▪ ');
+        const runs = element.segments && element.segments.length > 0
+          ? buildWordRuns(element.segments)
+          : [new TextRun({ text: cleanContent })];
+        children.push(new Paragraph({
+          children: [new TextRun({ text: marker }), ...runs],
+          spacing: { before: 60, after: 60 },
+          indent: { left: indentDxa },
+        }));
         break;
       }
-      case 'blockquote':
-        if (element.segments && element.segments.length > 0) {
-          children.push(new Paragraph({
-            children: element.segments.map(seg => new TextRun({
-              text: seg.text,
-              bold: seg.bold,
-              italics: true,
-              strike: seg.strikethrough,
-            })),
-            spacing: { before: 120, after: 120 },
-            indent: { left: 720 },
-          }));
-        } else {
-          children.push(new Paragraph({
-            children: [new TextRun({ text: cleanContent, italics: true })],
-            spacing: { before: 120, after: 120 },
-            indent: { left: 720 },
-          }));
-        }
+      case 'blockquote': {
+        const runs = element.segments && element.segments.length > 0
+          ? buildWordRuns(element.segments, true)
+          : [new TextRun({ text: cleanContent, italics: true })];
+        children.push(new Paragraph({
+          children: runs,
+          spacing: { before: 120, after: 120 },
+          indent: { left: 720 },
+        }));
         break;
-      case 'blockquote-list-item':
-        if (element.segments && element.segments.length > 0) {
-          children.push(new Paragraph({
-            children: [
-              new TextRun({ text: '• ', italics: true }),
-              ...element.segments.map(seg => new TextRun({
-                text: seg.text,
-                bold: seg.bold,
-                italics: true,
-                strike: seg.strikethrough,
-              })),
-            ],
-            spacing: { before: 60, after: 60 },
-            indent: { left: 1440 },
-          }));
-        } else {
-          children.push(new Paragraph({
-            children: [new TextRun({ text: `• ${cleanContent}`, italics: true })],
-            spacing: { before: 60, after: 60 },
-            indent: { left: 1440 },
-          }));
-        }
+      }
+      case 'blockquote-list-item': {
+        const runs = element.segments && element.segments.length > 0
+          ? buildWordRuns(element.segments, true)
+          : [new TextRun({ text: cleanContent, italics: true })];
+        children.push(new Paragraph({
+          children: [new TextRun({ text: '• ', italics: true }), ...runs],
+          spacing: { before: 60, after: 60 },
+          indent: { left: 1440 },
+        }));
         break;
-      case 'code':
+      }
+      case 'code': {
         const codeLines = cleanContent.split('\n');
         for (const codeLine of codeLines) {
           children.push(new Paragraph({
@@ -358,23 +364,16 @@ export async function generateWordDocument(markdown: string, filename: string): 
           }));
         }
         break;
-      default:
-        if (element.segments && element.segments.length > 0) {
-          children.push(new Paragraph({
-            children: element.segments.map(seg => new TextRun({ 
-              text: seg.text, 
-              bold: seg.bold,
-              italics: seg.italic,
-              strike: seg.strikethrough,
-            })),
-            spacing: { before: 100, after: 100 },
-          }));
-        } else {
-          children.push(new Paragraph({
-            children: [new TextRun({ text: cleanContent })],
-            spacing: { before: 100, after: 100 },
-          }));
-        }
+      }
+      default: {
+        const runs = element.segments && element.segments.length > 0
+          ? buildWordRuns(element.segments)
+          : [new TextRun({ text: cleanContent })];
+        children.push(new Paragraph({
+          children: runs,
+          spacing: { before: 100, after: 100 },
+        }));
+      }
     }
   }
 
@@ -409,6 +408,82 @@ export async function generatePDFDocument(markdown: string, filename: string): P
       pdf.addPage();
       yPosition = margin;
     }
+  };
+
+  // Render a line of inline segments with per-word styling (bold/italic/
+  // strikethrough), real hyperlinks, and word wrapping. Advances yPosition.
+  const renderRich = (
+    segments: TextSegment[],
+    opts: { indentX: number; baseItalic: boolean; fontSize: number; lineHeight: number; prefix: string }
+  ) => {
+    const { indentX, baseItalic, fontSize, lineHeight, prefix } = opts;
+    const startX = margin + indentX;
+    const effectiveMaxWidth = maxWidth - indentX;
+    pdf.setFontSize(fontSize);
+
+    type Tok = { text: string; ws: boolean; bold: boolean; italic: boolean; strike: boolean; href?: string };
+    const tokens: Tok[] = [];
+    if (prefix) tokens.push({ text: prefix, ws: false, bold: false, italic: baseItalic, strike: false });
+    for (const seg of segments) {
+      for (const part of seg.text.split(/(\s+)/)) {
+        if (!part) continue;
+        tokens.push({
+          text: part,
+          ws: /^\s+$/.test(part),
+          bold: !!seg.bold,
+          italic: !!seg.italic || baseItalic,
+          strike: !!seg.strikethrough,
+          href: seg.href,
+        });
+      }
+    }
+
+    const styleOf = (t: Tok): 'normal' | 'bold' | 'italic' | 'bolditalic' =>
+      t.bold && t.italic ? 'bolditalic' : t.bold ? 'bold' : t.italic ? 'italic' : 'normal';
+
+    checkPageBreak(lineHeight);
+    let x = startX;
+    let pendingSpace = 0;
+    let lineHasContent = false;
+
+    for (const t of tokens) {
+      if (t.ws) {
+        pdf.setFont('helvetica', 'normal');
+        pendingSpace += pdf.getTextWidth(t.text);
+        continue;
+      }
+      pdf.setFont('helvetica', styleOf(t));
+      const w = pdf.getTextWidth(t.text);
+      if (lineHasContent && x + pendingSpace + w > startX + effectiveMaxWidth) {
+        x = startX;
+        yPosition += lineHeight;
+        checkPageBreak(lineHeight);
+        pendingSpace = 0;
+        lineHasContent = false;
+      }
+      if (lineHasContent) x += pendingSpace;
+      pendingSpace = 0;
+
+      if (t.href) {
+        pdf.setTextColor(37, 99, 235);
+        pdf.textWithLink(t.text, x, yPosition, { url: t.href });
+        pdf.setDrawColor(37, 99, 235);
+        pdf.setLineWidth(0.2);
+        pdf.line(x, yPosition + 0.8, x + w, yPosition + 0.8);
+        pdf.setTextColor(0, 0, 0);
+      } else {
+        pdf.text(t.text, x, yPosition);
+      }
+      if (t.strike) {
+        pdf.setDrawColor(0, 0, 0);
+        pdf.setLineWidth(0.2);
+        const strikeY = yPosition - fontSize * 0.3528 * 0.3;
+        pdf.line(x, strikeY, x + w, strikeY);
+      }
+      x += w;
+      lineHasContent = true;
+    }
+    yPosition += lineHeight;
   };
 
   for (const element of elements) {
@@ -497,6 +572,7 @@ export async function generatePDFDocument(markdown: string, filename: string): P
     let lineHeight = 7;
     let prefix = '';
     let indentX = 0;
+    let baseItalic = false;
 
     switch (element.type) {
       case 'heading1':
@@ -524,21 +600,23 @@ export async function generatePDFDocument(markdown: string, filename: string): P
         yPosition += 2;
         break;
       case 'list-item':
-        prefix = '• ';
+        prefix = element.ordered ? `${element.ordinal}. ` : '• ';
         indentX = 5;
         break;
       case 'nested-list-item': {
         const level = element.indent || 1;
-        prefix = level === 1 ? '◦ ' : '▪ ';
+        prefix = element.ordered ? `${element.ordinal}. ` : (level === 1 ? '◦ ' : '▪ ');
         indentX = 5 + level * 5;
         break;
       }
       case 'blockquote':
         fontStyle = 'italic';
+        baseItalic = true;
         indentX = 5;
         break;
       case 'blockquote-list-item':
         fontStyle = 'italic';
+        baseItalic = true;
         prefix = '• ';
         indentX = 10;
         break;
@@ -546,6 +624,17 @@ export async function generatePDFDocument(markdown: string, filename: string): P
         pdf.setFont('courier', 'normal');
         fontSize = 10;
         break;
+    }
+
+    // Rich path: text elements with parsed segments render inline formatting
+    // and hyperlinks. Headings (whole-line bold) and code use the plain path.
+    const isRichText = !!element.segments && element.segments.length > 0
+      && element.type !== 'code' && !element.type.startsWith('heading');
+
+    if (isRichText) {
+      renderRich(element.segments!, { indentX, baseItalic, fontSize, lineHeight, prefix });
+      yPosition += 2;
+      continue;
     }
 
     if (element.type !== 'code') {
