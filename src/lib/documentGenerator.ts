@@ -605,7 +605,9 @@ export async function generatePDFDocument(markdown: string, filename: string): P
         break;
       case 'nested-list-item': {
         const level = element.indent || 1;
-        prefix = element.ordered ? `${element.ordinal}. ` : (level === 1 ? '◦ ' : '▪ ');
+        // jsPDF's built-in Helvetica is WinAnsi-encoded and has no ◦/▪ glyphs
+        // (they render as mojibake). Use en dash / middle dot, which it does have.
+        prefix = element.ordered ? `${element.ordinal}. ` : (level === 1 ? '– ' : '· ');
         indentX = 5 + level * 5;
         break;
       }
