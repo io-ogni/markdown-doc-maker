@@ -39,7 +39,7 @@ const faqs = [
     a: 'Yes. Switch the output format to Word to generate a .docx file you can open in Microsoft Word, Google Docs, or LibreOffice.',
   },
   {
-    q: 'Why did you build this?',
+    q: 'Why would you give this for free, no ads?',
     a: 'I built it because I care about privacy — and because good, private software can now be made quickly and at very low cost. A tool this simple has no business sending your documents to someone else’s server.',
   },
 ];

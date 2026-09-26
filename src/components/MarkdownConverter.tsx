@@ -32,7 +32,10 @@ export function MarkdownConverter() {
     setIsGenerating(true);
 
     try {
-      const sanitizedFilename = filename.replace(/[^a-zA-Z0-9-_\s]/g, '').trim() || 'document';
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const now = new Date();
+      const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+      const sanitizedFilename = filename.replace(/[^a-zA-Z0-9-_\s]/g, '').trim() || `Document-${stamp}`;
 
       if (outputFormat === 'pdf') {
         try {

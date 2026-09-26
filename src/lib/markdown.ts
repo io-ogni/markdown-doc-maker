@@ -10,6 +10,14 @@ import DOMPurify from 'dompurify';
 marked.use(footnote());
 marked.setOptions({ breaks: true, gfm: true });
 
+// Any link that opens a new tab gets rel="noopener noreferrer" so a target page
+// can't reach back into this one (tab-nabbing) or read the referrer.
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  if (node instanceof Element && node.tagName === 'A' && node.hasAttribute('target')) {
+    node.setAttribute('rel', 'noopener noreferrer');
+  }
+});
+
 /**
  * Parse Markdown to HTML and sanitize it. Pasted Markdown can carry raw HTML
  * (e.g. <img onerror> / <script>) that would otherwise run in the page and could
