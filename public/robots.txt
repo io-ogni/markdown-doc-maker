@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://markdown-converter.ioana-ognibeni.eu/sitemap.xml

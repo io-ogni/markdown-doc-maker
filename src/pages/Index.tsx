@@ -15,6 +15,34 @@ const licenses = [
   { name: 'file-saver', url: 'https://github.com/eligrey/FileSaver.js', license: 'MIT License' },
 ];
 
+// Kept in sync with the FAQPage JSON-LD in index.html — edit both together.
+const faqs = [
+  {
+    q: 'Is my Markdown uploaded to a server?',
+    a: 'No. Everything runs in your browser — your text and files never leave your device, there are no uploads and no third-party requests. You can confirm it in your browser’s network tab.',
+  },
+  {
+    q: 'Is the Markdown to PDF and Word converter free?',
+    a: 'Yes. It’s completely free, with no account, no sign-up, and no limit on how many documents you convert.',
+  },
+  {
+    q: 'Does it work offline?',
+    a: 'Once the page has loaded, conversion works without an internet connection — all parsing and document generation happens locally in JavaScript.',
+  },
+  {
+    q: 'How do I convert Markdown to PDF?',
+    a: 'Paste your Markdown or upload a .md file, choose PDF as the output format, and click convert. The PDF is generated on your device and saved straight to your downloads.',
+  },
+  {
+    q: 'Is it safe for confidential or sensitive documents?',
+    a: 'Yes. Because nothing is uploaded, it suits confidential contracts, internal notes, and other sensitive content that shouldn’t be sent to an online service.',
+  },
+  {
+    q: 'Can I export Markdown to Microsoft Word (.docx)?',
+    a: 'Yes. Switch the output format to Word to generate a .docx file you can open in Microsoft Word, Google Docs, or LibreOffice.',
+  },
+];
+
 const Index = () => {
   const [licensesOpen, setLicensesOpen] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
@@ -39,6 +67,21 @@ const Index = () => {
             Your file stays with you
           </button>
         </div>
+
+        {/* FAQ — real, crawlable content for long-tail privacy queries */}
+        <section aria-labelledby="faq-heading" className="mt-16 max-w-3xl mx-auto">
+          <h2 id="faq-heading" className="text-xl font-semibold text-foreground text-center mb-6">
+            Frequently asked questions
+          </h2>
+          <div className="space-y-5">
+            {faqs.map((item) => (
+              <div key={item.q} className="border-b border-border pb-4">
+                <h3 className="text-base font-medium text-foreground">{item.q}</h3>
+                <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">{item.a}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <footer className="mt-8 text-center text-sm text-muted-foreground space-y-2">
           <p>
