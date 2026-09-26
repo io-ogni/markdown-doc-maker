@@ -89,7 +89,11 @@ const printCss = `
   .footnotes a { word-break: break-word; }
 `;
 
-export function generateHTMLPrintPDF(markdown: string, filename: string): void {
+// Resolves once the browser's print-to-PDF has been invoked; rejects when the
+// environment can't print (typically in-app webviews like the LinkedIn or
+// Instagram browsers, where window.print is missing or a no-op). The caller uses
+// the rejection to guide the user to open the page in a real browser instead.
+export function generateHTMLPrintPDF(markdown: string, filename: string): Promise<void> {
   const body = markdownToSafeHtml(markdown);
 
   const html = `<!doctype html>
@@ -102,31 +106,49 @@ export function generateHTMLPrintPDF(markdown: string, filename: string): void {
   <body>${body}</body>
 </html>`;
 
-  // Render into a hidden iframe so we don't navigate away or flash a new tab.
-  const iframe = document.createElement('iframe');
-  iframe.setAttribute('aria-hidden', 'true');
-  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
-  document.body.appendChild(iframe);
+  return new Promise<void>((resolve, reject) => {
+    // Render into a hidden iframe so we don't navigate away or flash a new tab.
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(iframe);
 
-  const cleanup = () => {
-    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-  };
+    const cleanup = () => {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    };
 
-  iframe.onload = () => {
-    const win = iframe.contentWindow;
-    if (!win) { cleanup(); return; }
-    // Give fonts/layout a tick, then invoke the browser's print-to-PDF.
-    setTimeout(() => {
-      win.focus();
-      win.print();
-      // Remove after the dialog has had time to grab the document.
-      setTimeout(cleanup, 1000);
-    }, 150);
-  };
+    // Safety net: if onload never fires, don't hang the caller forever.
+    const failTimer = setTimeout(() => { cleanup(); reject(new Error('PRINT_TIMEOUT')); }, 8000);
 
-  const doc = iframe.contentWindow?.document;
-  if (!doc) { cleanup(); return; }
-  doc.open();
-  doc.write(html);
-  doc.close();
+    iframe.onload = () => {
+      const win = iframe.contentWindow;
+      if (!win || typeof win.print !== 'function') {
+        clearTimeout(failTimer);
+        cleanup();
+        reject(new Error('PRINT_UNAVAILABLE'));
+        return;
+      }
+      // Give fonts/layout a tick, then invoke the browser's print-to-PDF.
+      setTimeout(() => {
+        try {
+          win.focus();
+          win.print();
+          clearTimeout(failTimer);
+          resolve();
+        } catch (err) {
+          clearTimeout(failTimer);
+          reject(err instanceof Error ? err : new Error('PRINT_FAILED'));
+        } finally {
+          // Remove after the dialog has had time to grab the document.
+          setTimeout(cleanup, 1000);
+        }
+      }, 150);
+    };
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) { clearTimeout(failTimer); cleanup(); reject(new Error('PRINT_UNAVAILABLE')); return; }
+    doc.open();
+    doc.write(html);
+    doc.close();
+  });
 }

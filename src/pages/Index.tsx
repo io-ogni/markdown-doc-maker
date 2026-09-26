@@ -10,7 +10,8 @@ import {
 } from '@/components/ui/dialog';
 
 const licenses = [
-  { name: 'jsPDF', url: 'https://github.com/parallax/jsPDF', license: 'MIT License' },
+  { name: 'marked', url: 'https://github.com/markedjs/marked', license: 'MIT License' },
+  { name: 'DOMPurify', url: 'https://github.com/cure53/DOMPurify', license: 'Apache-2.0 / MPL-2.0' },
   { name: 'docx', url: 'https://github.com/dolanmilo/docx', license: 'MIT License' },
   { name: 'file-saver', url: 'https://github.com/eligrey/FileSaver.js', license: 'MIT License' },
 ];
