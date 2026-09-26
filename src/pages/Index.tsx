@@ -34,12 +34,12 @@ const faqs = [
     a: 'Paste your Markdown or upload a .md file, choose PDF as the output format, and click convert. The PDF is generated on your device and saved straight to your downloads.',
   },
   {
-    q: 'Is it safe for confidential or sensitive documents?',
-    a: 'Yes. Because nothing is uploaded, it suits confidential contracts, internal notes, and other sensitive content that shouldn’t be sent to an online service.',
-  },
-  {
     q: 'Can I export Markdown to Microsoft Word (.docx)?',
     a: 'Yes. Switch the output format to Word to generate a .docx file you can open in Microsoft Word, Google Docs, or LibreOffice.',
+  },
+  {
+    q: 'Why did you build this?',
+    a: 'I built it because I care about privacy — and because good, private software can now be made quickly and at very low cost. A tool this simple has no business sending your documents to someone else’s server.',
   },
 ];
 
