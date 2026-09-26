@@ -27,10 +27,6 @@ The custom domain is set in `public/CNAME`. DNS lives at **Strato**: the subdoma
 
 Vite · React · TypeScript · Tailwind CSS · shadcn/ui
 
-## Credits
-
-Initially scaffolded with [Lovable](https://lovable.dev), then cleaned up, de-branded, and self-hosted.
-
 ## License
 
 See [LICENSE](./LICENSE).
