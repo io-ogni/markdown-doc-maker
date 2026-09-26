@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle, ExternalHyperlink } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, TableLayoutType, WidthType, BorderStyle, ExternalHyperlink } from 'docx';
 import { saveAs } from 'file-saver';
 
 interface TextSegment {
@@ -248,9 +248,28 @@ export async function generateWordDocument(markdown: string, filename: string): 
     }
 
     if (element.type === 'table' && element.tableData) {
-      const tableRows = element.tableData.map((row, rowIndex) => {
+      const rows = element.tableData;
+      const colCount = Math.max(...rows.map(r => r.length));
+
+      // Size each column to its content instead of splitting evenly: width is
+      // proportional to the longest cell text in that column, so a narrow "ID"
+      // column no longer gets the same width as a wide "Notes" column. (Word's
+      // default was equal percentages, which is why every column looked identical.)
+      const TOTAL = 9000; // ~A4 content width in twips (DXA)
+      const colChars = Array.from({ length: colCount }, (_, c) => {
+        let max = 3;
+        for (const row of rows) {
+          const len = row[c] ? cleanInlineFormatting(row[c]).length : 0;
+          if (len > max) max = Math.min(len, 60); // cap so one huge cell can't dominate
+        }
+        return max;
+      });
+      const sum = colChars.reduce((a, b) => a + b, 0);
+      const colWidths = colChars.map(ch => Math.max(600, Math.round((ch / sum) * TOTAL)));
+
+      const tableRows = rows.map((row, rowIndex) => {
         return new TableRow({
-          children: row.map(cell => {
+          children: row.map((cell, colIndex) => {
             return new TableCell({
               children: [new Paragraph({
                 children: [new TextRun({
@@ -258,7 +277,7 @@ export async function generateWordDocument(markdown: string, filename: string): 
                   bold: rowIndex === 0,
                 })],
               })],
-              width: { size: 100 / row.length, type: WidthType.PERCENTAGE },
+              width: { size: colWidths[colIndex], type: WidthType.DXA },
             });
           }),
         });
@@ -266,7 +285,9 @@ export async function generateWordDocument(markdown: string, filename: string): 
 
       children.push(new Table({
         rows: tableRows,
-        width: { size: 100, type: WidthType.PERCENTAGE },
+        columnWidths: colWidths,
+        layout: TableLayoutType.FIXED,
+        width: { size: TOTAL, type: WidthType.DXA },
       }));
       children.push(new Paragraph({ text: '', spacing: { after: 200 } }));
       continue;

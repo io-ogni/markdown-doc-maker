@@ -211,8 +211,8 @@ Fenced code blocks, too
               />
               {/* Drag overlay */}
               {isDragging && (
-                <div className="absolute inset-0 rounded-xl border-2 border-dashed border-accent bg-accent/10 flex items-center justify-center z-10 pointer-events-none">
-                  <div className="flex flex-col items-center gap-2 text-accent">
+                <div className="absolute inset-0 rounded-xl border-2 border-dashed border-blue-500 bg-blue-500/10 flex items-center justify-center z-10 pointer-events-none">
+                  <div className="flex flex-col items-center gap-2 text-blue-600">
                     <Upload className="w-8 h-8" />
                     <span className="text-sm font-medium">Drop your .md file here</span>
                   </div>
@@ -271,11 +271,11 @@ Fenced code blocks, too
             <div
               role="radiogroup"
               aria-label="Output format"
-              className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-muted flex-1"
+              className="inline-grid grid-cols-2 gap-1 p-1 rounded-lg bg-muted w-auto self-start"
             >
               {([
-                { value: 'pdf', label: 'PDF', ext: '.pdf' },
-                { value: 'docx', label: 'Word', ext: '.docx' },
+                { value: 'pdf', label: 'PDF' },
+                { value: 'docx', label: 'Word' },
               ] as const).map((fmt) => (
                 <button
                   key={fmt.value}
@@ -283,15 +283,14 @@ Fenced code blocks, too
                   role="radio"
                   aria-checked={outputFormat === fmt.value}
                   onClick={() => setOutputFormat(fmt.value)}
-                  className={`flex items-center justify-center gap-2 h-11 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center justify-center gap-1.5 h-8 px-4 rounded-md text-sm font-medium transition-all ${
                     outputFormat === fmt.value
-                      ? 'bg-card text-foreground shadow-sm ring-1 ring-accent/40'
+                      ? 'bg-card text-foreground shadow-sm ring-1 ring-blue-500/40'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  <FileText className="w-4 h-4" />
+                  <FileText className="w-3.5 h-3.5" />
                   {fmt.label}
-                  <span className="text-xs text-muted-foreground">{fmt.ext}</span>
                 </button>
               ))}
             </div>
@@ -307,7 +306,7 @@ Fenced code blocks, too
           <Button
           onClick={handleGenerate}
           disabled={isGenerating || !markdown.trim()}
-          className="w-full h-14 text-base font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl transition-all disabled:opacity-50"
+          className="w-full h-11 text-sm font-medium bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-all disabled:opacity-50"
         >
           {isGenerating ? (
             <span className="flex items-center gap-2">
@@ -331,7 +330,7 @@ Fenced code blocks, too
             </span>
           ) : (
             <span className="flex items-center gap-2">
-              <FileDown className="w-5 h-5" />
+              <FileDown className="w-4 h-4" />
               Generate & Download {outputFormat.toUpperCase()}
             </span>
           )}
