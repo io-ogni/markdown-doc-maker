@@ -25,8 +25,8 @@ export function MarkdownPreview({ markdown }: MarkdownPreviewProps) {
         prose-headings:text-foreground prose-p:text-foreground/90 
         prose-strong:text-foreground prose-em:text-foreground/80
         prose-li:text-foreground/90 prose-blockquote:border-accent
-        prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm
-        prose-pre:bg-muted prose-pre:border prose-pre:border-border
+        prose-code:bg-muted prose-code:text-foreground prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm
+        prose-pre:bg-muted prose-pre:text-foreground prose-pre:border prose-pre:border-border
         prose-hr:border-border
         prose-a:text-accent prose-a:no-underline hover:prose-a:underline
         prose-img:rounded-lg prose-img:max-w-full
