@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, TableLayoutType, WidthType, BorderStyle, ExternalHyperlink } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, TableLayoutType, WidthType, BorderStyle, ExternalHyperlink, FootnoteReferenceRun } from 'docx';
 import { saveAs } from 'file-saver';
 
 interface TextSegment {
@@ -7,6 +7,39 @@ interface TextSegment {
   italic?: boolean;
   strikethrough?: boolean;
   href?: string; // set for link segments
+  footnoteId?: string; // set for [^id] footnote references
+}
+
+// Maps a markdown footnote id (e.g. "1", "note") to its sequential Word footnote
+// number. Set at the start of each generateWordDocument run, read by buildWordRuns.
+let footnoteNumbers: Record<string, number> = {};
+
+// Pull footnote definitions ("[^id]: text") out of the markdown so they don't
+// render as literal lines, and assign each a sequential number in order of first use.
+function extractFootnotes(markdown: string): { body: string; defs: { num: number; text: string }[] } {
+  const defText: Record<string, string> = {};
+  const bodyLines: string[] = [];
+  for (const line of markdown.split('\n')) {
+    const m = line.match(/^\[\^([^\]]+)\]:\s?(.*)$/);
+    if (m) { defText[m[1]] = m[2]; continue; }
+    bodyLines.push(line);
+  }
+  const body = bodyLines.join('\n');
+
+  // Number footnotes by order of reference in the body (Word convention).
+  const order: string[] = [];
+  const refRe = /\[\^([^\]]+)\]/g;
+  let rm;
+  while ((rm = refRe.exec(body)) !== null) {
+    if (defText[rm[1]] !== undefined && !order.includes(rm[1])) order.push(rm[1]);
+  }
+
+  footnoteNumbers = {};
+  const defs = order.map((id, idx) => {
+    footnoteNumbers[id] = idx + 1;
+    return { num: idx + 1, text: defText[id] };
+  });
+  return { body, defs };
 }
 
 interface ParsedElement {
@@ -176,22 +209,30 @@ function parseInlineFormatting(text: string): TextSegment[] {
   const segments: TextSegment[] = [];
   // Order matters: links first, then bold/italic/strike/code, then plain runs,
   // then a single leftover special char (so a stray '[' or '`' isn't dropped).
-  const regex = /\[([^\]]+)\]\(([^)]+)\)|\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|~~(.+?)~~|`(.+?)`|[^*~`[]+|[*~`[]/g;
+  const regex = /\[\^([^\]]+)\]|\[([^\]]+)\]\(([^)]+)\)|\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|~~(.+?)~~|`(.+?)`|[^*~`[]+|[*~`[]/g;
   let match;
 
   while ((match = regex.exec(text)) !== null) {
     if (match[1] !== undefined) {
-      segments.push({ text: match[1], href: match[2] });
-    } else if (match[3]) {
-      segments.push({ text: match[3], bold: true, italic: true });
+      // [^id] footnote reference — only treat as one if a definition exists,
+      // otherwise fall back to literal text so stray brackets aren't dropped.
+      if (footnoteNumbers[match[1]] !== undefined) {
+        segments.push({ text: '', footnoteId: match[1] });
+      } else {
+        segments.push({ text: match[0] });
+      }
+    } else if (match[2] !== undefined) {
+      segments.push({ text: match[2], href: match[3] });
     } else if (match[4]) {
-      segments.push({ text: match[4], bold: true });
+      segments.push({ text: match[4], bold: true, italic: true });
     } else if (match[5]) {
-      segments.push({ text: match[5], italic: true });
+      segments.push({ text: match[5], bold: true });
     } else if (match[6]) {
-      segments.push({ text: match[6], strikethrough: true });
+      segments.push({ text: match[6], italic: true });
     } else if (match[7]) {
-      segments.push({ text: match[7] });
+      segments.push({ text: match[7], strikethrough: true });
+    } else if (match[8]) {
+      segments.push({ text: match[8] });
     } else {
       segments.push({ text: match[0] });
     }
@@ -201,8 +242,11 @@ function parseInlineFormatting(text: string): TextSegment[] {
 }
 
 // Build Word runs from parsed segments, rendering links as real hyperlinks.
-function buildWordRuns(segments: TextSegment[], forceItalic = false): (TextRun | ExternalHyperlink)[] {
+function buildWordRuns(segments: TextSegment[], forceItalic = false): (TextRun | ExternalHyperlink | FootnoteReferenceRun)[] {
   return segments.map(seg => {
+    if (seg.footnoteId && footnoteNumbers[seg.footnoteId] !== undefined) {
+      return new FootnoteReferenceRun(footnoteNumbers[seg.footnoteId]);
+    }
     if (seg.href) {
       return new ExternalHyperlink({
         children: [new TextRun({
@@ -225,7 +269,8 @@ function buildWordRuns(segments: TextSegment[], forceItalic = false): (TextRun |
 }
 
 export async function generateWordDocument(markdown: string, filename: string): Promise<void> {
-  const elements = parseMarkdown(markdown);
+  const { body, defs } = extractFootnotes(markdown);
+  const elements = parseMarkdown(body);
   const children: (Paragraph | Table)[] = [];
 
   for (const element of elements) {
@@ -397,7 +442,15 @@ export async function generateWordDocument(markdown: string, filename: string): 
     }
   }
 
+  const footnotes = defs.length
+    ? Object.fromEntries(defs.map(d => [
+        d.num,
+        { children: [new Paragraph({ children: [new TextRun({ text: d.text })] })] },
+      ]))
+    : undefined;
+
   const doc = new Document({
+    footnotes,
     sections: [{
       properties: {},
       children: children,
