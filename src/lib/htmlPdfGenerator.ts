@@ -1,5 +1,4 @@
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import { markdownToSafeHtml } from './markdown';
 
 // Prototype: HTML-based PDF export.
 //
@@ -72,11 +71,26 @@ const printCss = `
   th { background: #f4f1ec; font-weight: 600; }
   img { max-width: 100%; }
   hr { border: none; border-top: 1px solid #d8d3ca; margin: 1.5em 0; }
+  sup { font-size: 0.75em; vertical-align: super; line-height: 0; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .footnotes {
+    font-size: 0.85em;
+    color: #555;
+    border-top: 1px solid #d8d3ca;
+    margin-top: 2.5em;
+    padding-top: 1em;
+  }
+  .footnotes ol { padding-left: 1.2em; }
+  .footnotes li { margin: 0.4em 0; }
+  .footnotes a { word-break: break-word; }
 `;
 
 export function generateHTMLPrintPDF(markdown: string, filename: string): void {
-  marked.setOptions({ breaks: true, gfm: true });
-  const body = DOMPurify.sanitize(marked.parse(markdown) as string);
+  const body = markdownToSafeHtml(markdown);
 
   const html = `<!doctype html>
 <html>

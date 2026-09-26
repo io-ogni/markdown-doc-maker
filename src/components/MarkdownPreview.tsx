@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import { markdownToSafeHtml } from '@/lib/markdown';
 
 interface MarkdownPreviewProps {
   markdown: string;
@@ -9,12 +8,7 @@ interface MarkdownPreviewProps {
 export function MarkdownPreview({ markdown }: MarkdownPreviewProps) {
   const html = useMemo(() => {
     if (!markdown.trim()) return '';
-    marked.setOptions({ breaks: true, gfm: true });
-    const rawHtml = marked.parse(markdown) as string;
-    // Sanitize before injecting: pasted markdown can carry raw HTML
-    // (e.g. <img onerror> / <script>) that would run in the preview and
-    // could phone home — which would break the "nothing leaves your device" promise.
-    return DOMPurify.sanitize(rawHtml);
+    return markdownToSafeHtml(markdown);
   }, [markdown]);
 
   if (!markdown.trim()) {
